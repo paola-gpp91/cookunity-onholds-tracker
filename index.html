@@ -6084,10 +6084,12 @@ function showLoginError(msg) {
 // Fetch user profile from backend (which also validates the token server-side)
 // and start the app
 async function bootstrapApp(idToken, userInfo, silent) {
+  currentIdToken = idToken;   // must be set before the first API call
   try {
     const result = await apiCall('api_getCurrentUser');
     if (!result.ok) {
       if (!silent) showLoginError(result.error || 'Sign-in failed');
+      currentIdToken = null;
       sessionStorage.removeItem('idToken');
       sessionStorage.removeItem('userInfo');
       return;
