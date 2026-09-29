@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.4</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.5</div>
   </div>
 </div>
 
@@ -2287,7 +2287,7 @@ function renderDashboardView() {
     <div class="panel-grid">
       <div class="panel">
         <div class="panel-title">On-Hold by Supervisor</div>
-        ${TEAMS.map(t => { const max = Math.max(...TEAMS.map(x=>x.onHold)); return `<div class="bar-row"><div class="bar-label">${t.supervisor}</div><div class="bar-track"><div class="bar-fill" style="width:${(t.onHold/max)*100}%;background:var(--c-blue)"></div></div><div class="bar-num" style="color:var(--c-blue)">${t.onHold}</div></div>`; }).join('')}
+        ${[...TEAMS].sort((a, b) => b.onHold - a.onHold).map(t => { const max = Math.max(1, ...TEAMS.map(x=>x.onHold)); return `<div class="bar-row"><div class="bar-label">${t.supervisor}</div><div class="bar-track"><div class="bar-fill" style="width:${(t.onHold/max)*100}%;background:var(--c-blue)"></div></div><div class="bar-num" style="color:var(--c-blue)">${t.onHold}</div></div>`; }).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">SLA Breach Rate by Team</div>
@@ -2906,9 +2906,7 @@ function renderLeadsView() {
         <div class="lead-banner-label">Reviewing as</div>
         <div class="lead-banner-name">${currentLead}</div>
       </div>
-      <select class="lead-banner-select" onchange="setLead(this.value)">
-        ${LEADS.map(l => `<option ${l.name===currentLead?'selected':''}>${l.name}</option>`).join('')}
-      </select>
+      <div class="lead-banner-lock" title="Reviews are always saved under your own name">🔒 Only you</div>
       <div class="lead-banner-stats">
         <div>
           <div class="lead-banner-stat-num">${reviewed.length} / ${total}</div>
@@ -3122,8 +3120,8 @@ function renderCloseForm(existing) {
     <div class="form-grid">
       <div class="form-field">
         <label class="form-field-label">Lead (you)</label>
-        <select class="form-select" id="close-lead">
-          ${LEADS.map(l => `<option ${l.name===(d.lead||currentLead)?'selected':''}>${l.name}</option>`).join('')}
+        <select class="form-select" id="close-lead" disabled title="Reviews are saved under your own name">
+          <option>${lrEsc(currentLead)}</option>
         </select>
       </div>
       <div class="form-field">
@@ -3164,8 +3162,8 @@ function renderFollowupForm(existing) {
       </div>
       <div class="form-field">
         <label class="form-field-label">Lead (you)</label>
-        <select class="form-select" id="fu-lead">
-          ${LEADS.map(l => `<option ${l.name===(d.lead||currentLead)?'selected':''}>${l.name}</option>`).join('')}
+        <select class="form-select" id="fu-lead" disabled title="Reviews are saved under your own name">
+          <option>${lrEsc(currentLead)}</option>
         </select>
       </div>
       <div class="form-field full">
@@ -6183,7 +6181,7 @@ function applyLiveData(d) {
   Object.keys(ranges).forEach(k => {
     const [a, b] = ranges[k];
     const byLead = {};
-    LIVE_DATA.leadActions.forEach(x => { const t = new Date(x.timestamp).getTime(); if (!(t >= a && t < b)) return;
+    LIVE_DATA.leadActions.forEach(x => { const t = new Date(x.timestamp).getTime(); if (!(t >= a && t < b) || x.action === 'skip') return;
       const n = x.leadName || 'Unknown';
       const r = byLead[n] || (byLead[n] = { closed: 0, reviewed: 0, byReason: {}, byDay: [0, 0, 0, 0, 0, 0, 0] });
       r.reviewed++;
@@ -6805,7 +6803,7 @@ applyLiveData = function (d) {
   _v62Apply(d);
   const src = {}; (LIVE_DATA.tickets || []).forEach(t => { src[String(t.id)] = t; });
   const lastRev = {};
-  (LIVE_DATA.leadActions || []).forEach(a => { if (!lastRev[a.ticketId] || a.timestamp > lastRev[a.ticketId].timestamp) lastRev[a.ticketId] = a; });
+  (LIVE_DATA.leadActions || []).forEach(a => { if (a.action === 'skip') return; if (!lastRev[a.ticketId] || a.timestamp > lastRev[a.ticketId].timestamp) lastRev[a.ticketId] = a; });
   TICKETS.forEach(t => {
     const s = src[t.id] || {};
     t.flagNotes = s.flagNotes || '';
@@ -6860,8 +6858,8 @@ saveAndNext = function (ticketId) {
 const FLAG_REASONS = ['Should be Pending', 'Should be Solved', 'No external dependency', 'Wrong hold reason', 'No follow-up scheduled', 'Other'];
 function flagButton(t) {
   return t.flaggedIncorrect
-    ? `<button class="btn btn-ghost btn-sm" style="color:var(--c-amber)" onclick="event.stopPropagation();openFlagModal('${t.id}')" title="View or edit the flag">⚠ Flagged</button>`
-    : `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openFlagModal('${t.id}')" title="Flag as incorrect On-Hold usage">⚑ Flag</button>`;
+    ? `<button class="btn btn-sm flag-btn flagged" onclick="event.stopPropagation();openFlagModal('${t.id}')" title="View or edit the flag">⚑ Flagged</button>`
+    : `<button class="btn btn-sm flag-btn" onclick="event.stopPropagation();openFlagModal('${t.id}')" title="Flag as incorrect On-Hold usage">⚑ Flag</button>`;
 }
 function openFlagModal(id) {
   const t = TICKETS.find(x => x.id === id);
@@ -6911,6 +6909,269 @@ function removeFlag(id) {
   updateSidebarCounts();
   if (VIEWS[currentView]) VIEWS[currentView].render();
 }
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v6.5 — Team Hierarchy redesign · Oldest-first review rule (no cherry-picking) -->
+<!--        · Review only as yourself · Red flag                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+.flag-btn{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5;font-weight:600}
+.flag-btn:hover{background:#FEE2E2;color:#B91C1C}
+.flag-btn.flagged{background:#DC2626;color:#fff;border-color:#DC2626}
+.lead-banner-lock{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;white-space:nowrap}
+.ooo-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px}
+.next-banner{display:flex;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px}
+tr.next-up td{background:#FFF7ED}
+.next-chip{display:inline-block;background:#F97316;color:#fff;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;margin-left:6px;letter-spacing:.02em}
+.skip-list{max-height:170px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin:8px 0 12px}
+.skip-row{display:flex;justify-content:space-between;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12.5px}
+.skip-row:last-child{border-bottom:0}
+/* Team Hierarchy */
+.tv-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.tv-toolbar input{font-family:var(--font-sans);font-size:13px;border:1px solid var(--border);border-radius:10px;padding:8px 12px;min-width:260px;background:#fff}
+.tv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+.tv-card{background:var(--panel);border-radius:18px;box-shadow:var(--shadow-card);overflow:hidden;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s}
+.tv-card:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(15,23,42,.10)}
+.tv-card.unassigned{border:2px dashed var(--border-2);box-shadow:none;background:var(--panel-alt)}
+.tv-hdr{position:relative;padding:18px 18px 16px;color:#fff;display:flex;gap:14px;align-items:center}
+.tv-hdr::after{content:'';position:absolute;right:-30px;top:-40px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.10)}
+.tv-avatar{width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-weight:700;font-size:18px;letter-spacing:.02em;flex-shrink:0;border:2px solid rgba(255,255,255,.35)}
+.tv-name{font-size:16px;font-weight:700;line-height:1.2}
+.tv-role{font-size:12px;opacity:.85;margin-top:3px}
+.tv-big{margin-left:auto;text-align:right;position:relative;z-index:1}
+.tv-big-num{font-size:30px;font-weight:800;line-height:1}
+.tv-big-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.85}
+.tv-body{padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px;flex:1}
+.tv-load{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--text-3)}
+.tv-load-bar{flex:1;height:7px;background:var(--panel-alt);border-radius:6px;overflow:hidden}
+.tv-load-fill{height:100%;border-radius:6px}
+.tv-pills{display:flex;gap:8px;flex-wrap:wrap}
+.tv-pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+.tv-pill.red{background:#FEE2E2;color:#B91C1C}.tv-pill.amber{background:#FEF3C7;color:#92400E}
+.tv-pill.green{background:#DCFCE7;color:#166534}.tv-pill.gray{background:var(--panel-alt);color:var(--text-3)}
+.tv-agents{display:flex;flex-direction:column;gap:2px}
+.tv-agent{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px;cursor:pointer}
+.tv-agent:hover{background:var(--panel-alt)}
+.tv-agent-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.tv-agent-name{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv-agent-meta{font-size:11px;color:var(--text-3)}
+.tv-count{min-width:28px;text-align:center;font-weight:700;font-size:12px;border-radius:8px;padding:3px 7px;background:var(--panel-alt);color:var(--text-2)}
+.tv-count.has{background:#FFEDD5;color:#C2410C}.tv-count.bad{background:#FEE2E2;color:#B91C1C}
+.tv-more{background:none;border:0;color:#C2410C;font-weight:600;font-size:12px;cursor:pointer;padding:6px 8px;text-align:left;font-family:var(--font-sans)}
+.tv-empty{padding:60px 20px;text-align:center;color:var(--text-3)}
+</style>
+<script>
+// ═══ 1. REVIEW ONLY AS YOURSELF ═════════════════════════════════════════════
+function lockLead() { if (currentUser && currentUser.name) currentLead = currentUser.name; }
+setLead = function () { toast('You can only review as yourself', 'info'); };
+
+// ═══ 2. OLDEST FIRST — the queue is always sorted by days on hold ═══════════
+function sortOldestFirst() {
+  const cur = TICKETS[reviewIndex] && TICKETS[reviewIndex].id;
+  TICKETS.sort((a, b) => (b.days - a.days) ||
+    (new Date(a.onHoldSince || a.requestedAt || 0) - new Date(b.onHoldSince || b.requestedAt || 0)) || String(a.id).localeCompare(String(b.id)));
+  if (cur) reviewIndex = Math.max(0, TICKETS.findIndex(t => t.id === cur));
+}
+function pendingQueue() { return TICKETS.filter(t => t.status === 'On-Hold' && !LEAD_ACTIONS[t.id]); }
+function olderPendingThan(id) { const q = pendingQueue(); const i = q.findIndex(t => t.id === id); return i > 0 ? q.slice(0, i) : []; }
+
+let OOO_LOCAL = [];   // out-of-order reviews made since the last data refresh
+const _v65Apply = applyLiveData;
+applyLiveData = function (d) {
+  _v65Apply(d);
+  // A review is a close / follow-up / hold done today — out-of-order notes don't count as reviews
+  Object.keys(LEAD_ACTIONS).forEach(k => delete LEAD_ACTIONS[k]);
+  const today = new Date().toDateString(), active = new Set(TICKETS.map(t => t.id));
+  (LIVE_DATA.leadActions || []).forEach(a => {
+    if (a.action === 'skip' || !active.has(a.ticketId) || new Date(a.timestamp).toDateString() !== today) return;
+    LEAD_ACTIONS[a.ticketId] = { type: a.action, lead: a.leadName, reason: a.closureReason || a.holdReason, notes: a.notes, action: a.followupAction,
+      outcome: a.followupOutcome, nextDate: a.followupNextDate, eta: a.holdEta, justification: a.justification, timestamp: a.timestamp };
+  });
+  OOO_LOCAL = [];
+  sortOldestFirst();
+  lockLead();
+  updateSidebarCounts();
+};
+
+function guardOpen(id, proceed) {
+  if (LEAD_ACTIONS[id]) return proceed();          // already reviewed today — editing is fine
+  const older = olderPendingThan(id);
+  if (!older.length) return proceed();             // it IS the oldest — all good
+  openSkipModal(id, older, proceed);
+}
+const _v65ReviewTicket = reviewTicket;
+reviewTicket = function (id) { guardOpen(id, () => _v65ReviewTicket(id)); };
+const _v65Nav = navReview;
+navReview = function (dir) {
+  const onHold = TICKETS.filter(t => t.status === 'On-Hold');
+  const cur = TICKETS[reviewIndex];
+  const target = onHold[onHold.findIndex(t => cur && t.id === cur.id) + dir];
+  if (!target) return;
+  if (dir < 0) return _v65Nav(dir);
+  guardOpen(target.id, () => _v65Nav(dir));
+};
+const _v65Start = startReviewMode;
+startReviewMode = function () { sortOldestFirst(); return _v65Start(); };
+
+let _skipProceed = null;
+function openSkipModal(id, older, proceed) {
+  const t = TICKETS.find(x => x.id === id);
+  const first = older[0];
+  _skipProceed = proceed;
+  hmModal('skip-modal', 'Out-of-order review', 560);
+  document.getElementById('skip-modal-title').textContent = '⚠️ Oldest tickets come first';
+  document.getElementById('skip-modal-body').innerHTML = `
+    <div class="callout callout-danger" style="margin-bottom:12px"><div class="callout-icon">🚫</div><div class="callout-body">
+      <strong>No cherry-picking.</strong> You're opening <strong>#${lrEsc(id)}</strong> (${t ? t.days : '?'}d) while
+      <strong>${older.length} older ticket${older.length > 1 ? 's are' : ' is'}</strong> still waiting for review.
+      If you continue, this is recorded as an <strong>out-of-order review</strong> with your note, and supervisors can see it.</div></div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Waiting longer</div>
+    <div class="skip-list">${older.slice(0, 8).map(o => `<div class="skip-row"><span><strong>#${lrEsc(o.id)}</strong> · ${lrEsc(String(o.subject).slice(0, 44))}</span><span style="color:var(--c-red);font-weight:600">${o.days}d</span></div>`).join('')}
+      ${older.length > 8 ? `<div class="skip-row lr-muted">+ ${older.length - 8} more</div>` : ''}</div>
+    <label style="font-size:11.5px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Why are you reviewing out of order? <span style="color:var(--c-red)">*</span></label>
+    <textarea id="skip-note" class="v6-input" rows="3" placeholder="e.g. Customer escalated this ticket to me directly; the older ones are waiting on Engineering." oninput="document.getElementById('skip-go').disabled=this.value.trim().length<10"></textarea>
+    <div class="lr-muted" style="margin-top:6px;font-size:11.5px">Minimum 10 characters.</div>`;
+  document.getElementById('skip-modal-ftr').innerHTML = `
+    <button class="btn btn-primary" onclick="closeModal('skip-modal');_v65ReviewTicket('${lrEsc(first.id)}')">↩ Review oldest first (#${lrEsc(first.id)})</button>
+    <button class="btn btn-ghost" id="skip-go" style="color:var(--c-red)" disabled onclick="confirmSkip('${lrEsc(id)}')">Continue out of order</button>`;
+  document.getElementById('skip-modal').dataset.older = JSON.stringify(older.map(o => o.id));
+  openModal('skip-modal');
+}
+function confirmSkip(id) {
+  const note = document.getElementById('skip-note').value.trim();
+  if (note.length < 10) return;
+  const skipped = JSON.parse(document.getElementById('skip-modal').dataset.older || '[]');
+  persist('api_leadAction', [id, { type: 'skip', justification: note, skippedIds: skipped }], 'The out-of-order note');
+  OOO_LOCAL.push({ action: 'skip', ticketId: id, pickedTicketId: id, skippedIds: skipped, justification: note, leadName: currentUser.name, timestamp: new Date().toISOString() });
+  closeModal('skip-modal');
+  if (!viewAsRole) toast('⚠️ Out-of-order review recorded with your note', 'info');
+  const go = _skipProceed; _skipProceed = null;
+  if (go) go();
+}
+
+function todaysOutOfOrder() {
+  const today = new Date().toDateString();
+  return [...(LIVE_DATA.leadActions || []).filter(a => a.action === 'skip' && new Date(a.timestamp).toDateString() === today), ...OOO_LOCAL]
+    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+}
+function openOOOReport() {
+  const list = todaysOutOfOrder();
+  hmModal('ooo-modal', 'Out-of-order reviews', 640);
+  document.getElementById('ooo-modal-title').textContent = '⚠️ Out-of-order reviews today (' + list.length + ')';
+  document.getElementById('ooo-modal-body').innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th>Time</th><th>Lead</th><th>Opened</th><th>Skipped (older)</th><th>Note</th></tr></thead><tbody>
+    ${list.map(a => `<tr><td style="font-family:var(--font-mono);font-size:12px">${lrTime(a.timestamp)}</td><td style="font-size:12.5px">${lrEsc(a.leadName)}</td>
+      <td><a class="lr-link" href="${ZENDESK_TICKET_URL}${lrEsc(a.pickedTicketId || a.ticketId)}" target="_blank">#${lrEsc(a.pickedTicketId || a.ticketId)}</a></td>
+      <td style="font-size:12px">${(a.skippedIds || []).slice(0, 4).map(x => '#' + lrEsc(x)).join(', ')}${(a.skippedIds || []).length > 4 ? ' +' + ((a.skippedIds || []).length - 4) : ''}</td>
+      <td style="font-size:12.5px;white-space:normal;max-width:240px">${lrEsc(a.justification)}</td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="lr-empty">No out-of-order reviews today. 👏</div>';
+  document.getElementById('ooo-modal-ftr').innerHTML = `<button class="btn btn-ghost" onclick="closeModal('ooo-modal')">Close</button>`;
+  openModal('ooo-modal');
+}
+
+// Lead Monitoring: "next up" hint, highlight, and the supervisor report
+// Wrap the function itself — Lead Monitoring redraws through it after every review
+{
+  const _v65Leads = renderLeadsView;
+  renderLeadsView = function () {
+    lockLead(); sortOldestFirst();
+    const r = _v65Leads.apply(this, arguments);
+    const banner = document.querySelector('#content .lead-banner');
+    const next = pendingQueue()[0];
+    if (banner && !reviewMode) {
+      let html = next ? `<div class="next-banner">🔝 <span><strong>Oldest first:</strong> next up is <strong>#${lrEsc(next.id)}</strong> — on hold ${next.days} days. Reviewing a newer ticket first needs a note.</span></div>` : '';
+      const ooo = todaysOutOfOrder();
+      if (ooo.length && can('viewPerformance')) html += `<div class="ooo-banner">⚠️ <span><strong>${ooo.length} out-of-order review${ooo.length > 1 ? 's' : ''} today</strong> — newer tickets were opened before older ones.</span><button class="btn btn-ghost btn-sm" style="margin-left:auto;color:#991B1B" onclick="openOOOReport()">View notes</button></div>`;
+      banner.insertAdjacentHTML('afterend', html);
+    }
+    if (next && !reviewMode) {
+      const btn = document.querySelector(`#content button[onclick="reviewTicket('${next.id}')"]`);
+      const tr = btn && btn.closest('tr');
+      if (tr) { tr.classList.add('next-up'); const tid = tr.querySelector('.tid'); if (tid) tid.insertAdjacentHTML('afterend', '<span class="next-chip">NEXT UP</span>'); }
+    }
+    return r;
+  };
+  if (VIEWS.leads) VIEWS.leads.render = function () { return renderLeadsView(); };
+}
+
+// ═══ 3. TEAM HIERARCHY — redesigned ═════════════════════════════════════════
+let teamSearch = '';
+const TV_COLORS = [['#7C2D12', '#C2410C'], ['#1E3A8A', '#3B82F6'], ['#065F46', '#10B981'], ['#581C87', '#A855F7'], ['#9D174D', '#EC4899'], ['#0F766E', '#14B8A6'], ['#92400E', '#F59E0B'], ['#334155', '#64748B']];
+function tvColor(name) { let h = 0; String(name).split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return TV_COLORS[h % TV_COLORS.length]; }
+function openAgentTickets(name) { AH.q = name; setView('tickets'); }
+
+function renderTeamViewV2() {
+  const SLA = typeof slaDays === 'function' ? slaDays() : 14;
+  const q = teamSearch.toLowerCase().trim();
+  const teams = [...TEAMS].sort((a, b) => (a.supervisor === 'Unassigned') - (b.supervisor === 'Unassigned') || b.onHold - a.onHold || a.supervisor.localeCompare(b.supervisor));
+  const shown = teams.map(t => {
+    if (!q) return t;
+    const supHit = t.supervisor.toLowerCase().includes(q);
+    const agents = supHit ? t.agents : t.agents.filter(a => a.name.toLowerCase().includes(q));
+    return agents.length || supHit ? Object.assign({}, t, { agents }) : null;
+  }).filter(Boolean);
+  const agentsTotal = TEAMS.reduce((n, t) => n + t.agents.length, 0);
+  const onHold = TEAMS.reduce((n, t) => n + t.onHold, 0), breached = TEAMS.reduce((n, t) => n + t.breached, 0);
+  const maxLoad = Math.max(1, ...TEAMS.map(t => t.onHold));
+
+  const card = t => {
+    const [c1, c2] = t.supervisor === 'Unassigned' ? ['#64748B', '#94A3B8'] : tvColor(t.supervisor);
+    const agents = [...t.agents].sort((a, b) => b.tickets - a.tickets || a.name.localeCompare(b.name));
+    const open = !!(window._tvOpen && window._tvOpen[t.supervisor]);
+    const visible = open || q ? agents : agents.slice(0, 6);
+    const loadPct = Math.round(t.onHold / maxLoad * 100);
+    const loadColor = t.breached ? '#EF4444' : loadPct > 66 ? '#F97316' : '#10B981';
+    return `<div class="tv-card ${t.supervisor === 'Unassigned' ? 'unassigned' : ''}">
+      <div class="tv-hdr" style="background:linear-gradient(135deg,${c1},${c2})">
+        <div class="tv-avatar">${lrEsc(t.initials)}</div>
+        <div style="min-width:0;position:relative;z-index:1"><div class="tv-name">${lrEsc(t.supervisor)}</div><div class="tv-role">${lrEsc(t.role)}</div></div>
+        <div class="tv-big"><div class="tv-big-num">${t.onHold}</div><div class="tv-big-lbl">on-hold</div></div>
+      </div>
+      <div class="tv-body">
+        <div class="tv-load"><span>Workload</span><div class="tv-load-bar"><div class="tv-load-fill" style="width:${Math.max(3, loadPct)}%;background:${loadColor}"></div></div><span>${loadPct}%</span></div>
+        <div class="tv-pills">
+          <span class="tv-pill gray">👥 ${t.agents.length} agent${t.agents.length === 1 ? '' : 's'}</span>
+          <span class="tv-pill ${t.breached ? 'red' : 'green'}">${t.breached ? '⏰ ' + t.breached + ' over SLA' : '✓ Within SLA'}</span>
+          ${t.incorrect ? `<span class="tv-pill amber">⚑ ${t.incorrect} flagged</span>` : ''}
+        </div>
+        <div class="tv-agents">
+          ${visible.map(a => { const [ac] = tvColor(a.name); return `<div class="tv-agent" onclick="openAgentTickets('${lrEsc(a.name).replace(/'/g, "\\'")}')" title="See ${lrEsc(a.name)}'s on-hold tickets">
+            <div class="tv-agent-av" style="background:${ac}">${lrEsc(a.initials)}</div>
+            <div style="flex:1;min-width:0"><div class="tv-agent-name">${lrEsc(a.name)}</div>
+              <div class="tv-agent-meta">${a.breach ? `<span style="color:var(--c-red)">${a.breach} over SLA</span>` : a.tickets ? 'On track' : 'No on-hold tickets'}${a.incorrect ? ` · <span style="color:var(--c-amber)">${a.incorrect} flagged</span>` : ''}</div></div>
+            <div class="tv-count ${a.breach ? 'bad' : a.tickets ? 'has' : ''}">${a.tickets}</div></div>`; }).join('') || '<div class="lr-muted" style="padding:8px">No agents</div>'}
+          ${!q && agents.length > 6 ? `<button class="tv-more" onclick="window._tvOpen=window._tvOpen||{};window._tvOpen['${lrEsc(t.supervisor).replace(/'/g, "\\'")}']=${!open};renderTeamViewV2()">${open ? 'Show less ▲' : 'Show all ' + agents.length + ' agents ▼'}</button>` : ''}
+        </div>
+      </div></div>`;
+  };
+
+  document.getElementById('content').innerHTML = `
+    ${pageHeader('Team Hierarchy', 'Supervisors and their teams — busiest first. Click an agent to see their on-hold tickets.',
+      can('viewAdmin') ? `<button class="btn btn-ghost btn-sm" onclick="setView('hierarchy')">🏗️ Manage hierarchy</button>` : '')}
+    <div class="kpi-grid">
+      ${kpiCard('Supervisors', String(TEAMS.filter(t => t.supervisor !== 'Unassigned').length), 'Leading a team', 'var(--c-purple)', 'var(--c-purple-soft)')}
+      ${kpiCard('Agents', String(agentsTotal), 'In the hierarchy', 'var(--c-blue)', 'var(--c-blue-soft)')}
+      ${kpiCard('On-Hold', String(onHold), 'Across all teams', 'var(--c-orange)', 'var(--c-orange-soft)')}
+      ${kpiCard('Over SLA', String(breached), 'On hold ' + SLA + '+ days', 'var(--c-red)', 'var(--c-red-soft)')}
+    </div>
+    <div class="tv-toolbar">
+      <input placeholder="🔍 Search a supervisor or agent" value="${lrEsc(teamSearch)}" oninput="teamSearch=this.value;clearTimeout(window._tvT);window._tvT=setTimeout(()=>{renderTeamViewV2();const i=document.querySelector('.tv-toolbar input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},200)">
+      <span class="lr-muted">${shown.length} team${shown.length === 1 ? '' : 's'}</span>
+    </div>
+    ${TEAMS.length === 0 ? `<div class="panel tv-empty"><div style="font-size:40px;margin-bottom:8px">🏗️</div><div style="font-weight:600;color:var(--text);margin-bottom:6px">No hierarchy yet</div>
+        <div style="margin-bottom:14px">An Admin can add agents and supervisors in Manage Hierarchy.</div>${can('viewAdmin') ? `<button class="btn btn-primary btn-sm" onclick="setView('hierarchy')">Open Manage Hierarchy</button>` : ''}</div>`
+      : shown.length === 0 ? '<div class="panel tv-empty">No supervisor or agent matches your search.</div>'
+      : `<div class="tv-grid">${shown.map(card).join('')}</div>`}`;
+}
+if (VIEWS.team) VIEWS.team.render = renderTeamViewV2;
+
+// ═══ Startup ═════════════════════════════════════════════════════════════════
+sortOldestFirst();
+lockLead();
+const _v65StartApp = startApp;
+startApp = function () { lockLead(); sortOldestFirst(); return _v65StartApp(); };
+const _v65Cycle = cycleUser;
+cycleUser = function () { const r = _v65Cycle.apply(this, arguments); lockLead(); if (currentView === 'leads' && VIEWS.leads) VIEWS.leads.render(); return r; };
 </script>
 
 </div> <!-- end #app-shell -->
@@ -7034,9 +7295,10 @@ async function purgeRemovedLogs(logIds) {
 // ─── Admin → 📦 Sheet size ───────────────────────────────────────────────────
 let sizeCache = null;
 function sizeCardHtml() {
-  const s = sizeCache;
+  let s = sizeCache;
   const fmt = n => Number(n).toLocaleString('en-US');
-  const body = !s ? '<div class="lr-muted">Checking…</div>' : s.error ? `<div class="lr-muted">⚠️ ${lrEsc(s.error)}</div>` : `
+  if (s && !s.error && !Array.isArray(s.tabs)) sizeCache = { error: 'Sheet size is not available — update Code.gs to the latest version.' };
+  const body = !sizeCache ? '<div class="lr-muted">Checking…</div>' : sizeCache.error ? `<div class="lr-muted">⚠️ ${lrEsc(sizeCache.error)}</div>` : `
     <div style="display:flex;justify-content:space-between;font-size:13px"><strong>${s.percent}% used</strong><span class="lr-muted">${fmt(s.totalCells)} of ${fmt(s.limit)} cells</span></div>
     <div class="sz-bar"><div class="sz-fill" style="width:${Math.max(1, Math.min(100, s.percent))}%"></div></div>
     <div class="lr-muted" style="font-size:11.5px">${s.percent < 50 ? '✅ Plenty of room.' : s.percent < 80 ? '⚠️ Getting fuller — consider deleting removed logs.' : '🚨 Close to Google\'s limit — clean up soon.'} Empty rows count too, so trimming them helps.</div>
