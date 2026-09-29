@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.2</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.4</div>
   </div>
 </div>
 
@@ -6384,8 +6384,9 @@ function openRemoveLogModal(logId) {
     <div style="font-size:13px;margin-bottom:10px">Uploaded <strong>${lrDT(l.uploadedAt)}</strong> by <strong>${lrEsc(l.uploadedByName)}</strong> · ${l.total} tickets</div>
     <div class="v6-mode">${isLatest
       ? `⏪ <strong>This is the most recent log</strong>, so removing it also <strong>undoes its changes</strong>:<ul class="v6-list" style="margin-bottom:0">
-          <li>${l.newCount} new ticket(s) it added are removed</li><li>${l.removedCount} ticket(s) it marked "Removed" go back to On-Hold</li><li>${l.reappearedCount} reappearance(s) are undone</li></ul>`
-      : `🗂️ <strong>This is an older log.</strong> It will be hidden from Upload Logs. Ticket statuses stay as they are — later logs already build on it.`}</div>
+          <li>${l.newCount} new ticket(s) it added are removed</li><li>${l.removedCount} ticket(s) it marked "Removed" go back to On-Hold</li><li>${l.reappearedCount} reappearance(s) are undone</li>
+          <li>🧹 Its data is <strong>deleted from the sheet</strong> right away (it can't be restored)</li></ul>`
+      : `🗂️ <strong>This is an older log.</strong> It will be hidden from Upload Logs. Ticket statuses stay as they are — later logs already build on it.<br>An Admin can restore it, or delete it permanently to free space in the sheet.`}</div>
     <label style="font-size:11.5px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Reason <span style="color:var(--c-red)">*</span></label>
     <input id="v6-remove-reason" class="v6-input" placeholder="e.g. Duplicate upload, wrong file">
     <div class="lr-muted" style="margin-top:10px">🔒 Only Admins can see removed logs, with who removed them and when.</div>`;
@@ -6415,7 +6416,8 @@ function deletedLogsHtml() {
   const list = deletedLogsCache;
   const body = list === null ? '<div class="lr-empty">Loading…</div>' : list.error ? `<div class="lr-empty">⚠️ ${lrEsc(list.error)}</div>`
     : !list.length ? '<div class="lr-empty">No logs have been removed.</div>'
-    : `<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Log ID</th><th>Uploaded</th><th>Removed At</th><th>Removed By</th><th>Reason</th><th>What happened</th><th></th></tr></thead><tbody>
+    : `${list.some(d => !d.purgedAt) ? `<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-ghost btn-sm" style="color:var(--c-red)" onclick="purgeRemovedLogs()">🧹 Delete all removed logs permanently (${list.filter(d => !d.purgedAt).length})</button></div>` : ''}
+      <div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Log ID</th><th>Uploaded</th><th>Removed At</th><th>Removed By</th><th>Reason</th><th>What happened</th><th>Data in sheet</th><th></th></tr></thead><tbody>
       ${list.map(d => `<tr>
         <td><a class="lr-link" onclick="openLog('${lrEsc(d.logId)}')">${lrEsc(d.logId)}</a></td>
         <td style="font-size:12.5px">${lrDT(d.uploadedAt)}<div class="lr-muted" style="font-size:11px">${lrEsc(d.uploadedByName)} · ${d.total} tickets</div></td>
@@ -6423,10 +6425,11 @@ function deletedLogsHtml() {
         <td style="font-size:12.5px">${lrEsc(d.deletedBy)}</td>
         <td style="font-size:12.5px;max-width:220px;white-space:normal">${lrEsc(d.deleteReason) || '<span class="lr-muted">—</span>'}</td>
         <td>${d.deleteMode === 'reverted' ? '<span class="lr-chip lr-removed">⏪ Removed & changes undone</span>' : '<span class="lr-chip lr-carried">🙈 Hidden</span>'}</td>
-        <td>${d.canRestore ? `<button class="btn btn-ghost btn-sm" onclick="restoreLog('${lrEsc(d.logId)}')">↩ Restore</button>` : ''}</td>
+        <td style="font-size:12px">${d.purgedAt ? `<span class="lr-chip lr-carried">🧹 Deleted</span><div class="lr-muted" style="font-size:11px;margin-top:2px">${lrDT(d.purgedAt)}</div>` : '<span class="lr-chip lr-pending">Kept · restorable</span>'}</td>
+        <td style="white-space:nowrap">${d.canRestore ? `<button class="btn btn-ghost btn-sm" onclick="restoreLog('${lrEsc(d.logId)}')">↩ Restore</button>` : ''}${!d.purgedAt ? ` <button class="btn btn-ghost btn-sm" style="color:var(--c-red)" title="Delete its data from the sheet" onclick="purgeRemovedLogs(['${lrEsc(d.logId)}'])">🧹 Delete permanently</button>` : ''}</td>
       </tr>`).join('')}</tbody></table></div></div>`;
   return `<div id="v6-deleted-logs"><div class="lr-section-title">🗑️ Removed logs <span class="rp-role rp-Admin">Admin only</span></div>
-    <div class="lr-section-sub">Every removal is timestamped and kept here. Removed logs are hidden from everyone else.</div>${body}</div>`;
+    <div class="lr-section-sub">Every removal is timestamped and kept here, even after its data is deleted. Removed logs are hidden from everyone else.</div>${body}</div>`;
 }
 async function loadDeletedLogs() {
   try { deletedLogsCache = await apiData('api_getDeletedLogs'); } catch (e) { deletedLogsCache = { error: e.message }; }
@@ -6911,6 +6914,169 @@ function removeFlag(id) {
 </script>
 
 </div> <!-- end #app-shell -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v6.3 — Loading indicator with timer · 1-minute limit on every sheet request   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+#ld-pill{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);z-index:10001;opacity:0;pointer-events:none;
+  display:flex;align-items:center;gap:12px;background:#0F172A;color:#fff;border-radius:14px;padding:11px 16px;min-width:300px;max-width:92vw;
+  box-shadow:0 12px 34px rgba(15,23,42,.35);font-family:var(--font-sans);transition:opacity .18s,transform .18s}
+#ld-pill.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#ld-pill.quiet{min-width:0;padding:8px 14px;border-radius:999px}
+#ld-pill.quiet .ld-bar,#ld-pill.quiet #ld-sub{display:none}
+.ld-spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.25);border-top-color:#FDBA74;border-radius:50%;animation:ldspin .8s linear infinite;flex-shrink:0}
+@keyframes ldspin{to{transform:rotate(360deg)}}
+.ld-main{flex:1;min-width:0}
+#ld-msg{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ld-sub{font-size:11px;color:#CBD5E1;margin-top:2px}
+.ld-bar{height:4px;background:rgba(255,255,255,.15);border-radius:4px;margin-top:7px;overflow:hidden}
+#ld-fill{height:100%;width:0;background:linear-gradient(90deg,#FDBA74,#F97316);border-radius:4px;transition:width .25s linear}
+#ld-pill.late #ld-fill{background:linear-gradient(90deg,#F97316,#EF4444)}
+#ld-time{font-family:var(--font-mono);font-size:13px;font-weight:700;color:#FDBA74;min-width:34px;text-align:right}
+</style>
+<div id="ld-pill" role="status" aria-live="polite">
+  <div class="ld-spin"></div>
+  <div class="ld-main"><div id="ld-msg">Working…</div><div id="ld-sub">Pulling information from the sheet</div><div class="ld-bar"><div id="ld-fill"></div></div></div>
+  <div id="ld-time">0s</div>
+</div>
+<script>
+// Every request to the sheet shows progress and is stopped after 1 minute
+var LOAD_TIMEOUT_MS = 60000;
+const LD_LABELS = {
+  api_getCurrentUser: 'Signing you in', api_getLiveData: 'Pulling your data from the sheet',
+  api_uploadCsv: 'Uploading & reconciling the log', api_deleteLog: 'Removing the log', api_restoreLog: 'Restoring the log',
+  api_revertLastUpload: 'Undoing the latest upload', api_getLogs: 'Loading upload logs', api_getLogDetail: 'Opening the log',
+  api_getRemovals: 'Loading removed tickets', api_getReappeared: 'Loading reappeared tickets', api_getTicketHistory: 'Loading ticket history',
+  api_getDeletedLogs: 'Loading removed logs', api_setRemovalOutcome: 'Saving the outcome',
+  api_getHierarchy: 'Loading the hierarchy', api_upsertAgent: 'Saving the agent', api_deleteAgent: 'Removing the agent', api_importHierarchy: 'Importing the hierarchy',
+  api_getRoles: 'Loading user roles', api_setRole: 'Saving the role', api_removeRole: 'Removing the role',
+  api_exportAll: 'Preparing the backup', api_resetAllData: 'Resetting the tracker',
+};
+// Small background saves (reviews, flags…) show a compact "Saving…" instead of the full panel
+const LD_QUIET = new Set(['api_leadAction', 'api_flagIncorrect', 'api_unflagIncorrect', 'api_updateHoldReason', 'api_deliverFeedback']);
+const ldJobs = new Map();
+let ldSeq = 0, ldTick = null;
+
+function ldRender() {
+  const pill = document.getElementById('ld-pill');
+  if (!pill) return;
+  const jobs = [...ldJobs.values()].filter(j => Date.now() - j.start > 300);   // skip quick ones — no flicker
+  if (!jobs.length) { pill.classList.remove('show'); if (!ldJobs.size && ldTick) { clearInterval(ldTick); ldTick = null; } return; }
+  const loud = jobs.filter(j => !j.quiet).sort((a, b) => a.start - b.start);
+  const j = loud[0] || jobs[0];
+  const sec = Math.floor((Date.now() - j.start) / 1000);
+  const limit = Math.round(LOAD_TIMEOUT_MS / 1000);
+  pill.classList.add('show');
+  pill.classList.toggle('quiet', !loud.length);
+  pill.classList.toggle('late', sec >= limit * 0.66);
+  document.getElementById('ld-msg').textContent = loud.length ? j.label + '…' + (loud.length > 1 ? `  (+${loud.length - 1} more)` : '') : '💾 Saving…';
+  document.getElementById('ld-sub').textContent =
+    sec < 15 ? 'Pulling information from the sheet' :
+    sec < limit * 0.66 ? 'Still working — large sheets can take a little longer' :
+    `Almost at the ${limit}-second limit…`;
+  document.getElementById('ld-fill').style.width = Math.min(100, (Date.now() - j.start) / LOAD_TIMEOUT_MS * 100) + '%';
+  document.getElementById('ld-time').textContent = loud.length ? sec + 's' : '';
+}
+
+function ldTimeoutMessage(job) {
+  const lim = Math.round(LOAD_TIMEOUT_MS / 1000) + ' seconds';
+  return job.write
+    ? `"${job.label}" took longer than ${lim} and was stopped on this screen. It may still finish in the background — refresh the page and check before trying again.`
+    : `"${job.label}" took longer than ${lim}. Please try again — if it keeps happening, tell your Admin.`;
+}
+
+const _ldFetch = window.fetch.bind(window);
+window.fetch = function (url, opts) {
+  if (!/script\.google\.com\/(a\/[^/]+\/)?macros/.test(String(url))) return _ldFetch(url, opts);
+  let method = '';
+  try { method = JSON.parse((opts && opts.body) || '{}').method || ''; } catch (e) {}
+  const job = { label: LD_LABELS[method] || 'Working', start: Date.now(), quiet: LD_QUIET.has(method), write: !/^api_get/.test(method) };
+  const id = ++ldSeq;
+  ldJobs.set(id, job);
+  if (!ldTick) ldTick = setInterval(ldRender, 250);
+  setTimeout(ldRender, 320);   // appear right when a request passes 0.3s
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => { try { ctrl && ctrl.abort(); } catch (e) {} reject(new Error(ldTimeoutMessage(job))); }, LOAD_TIMEOUT_MS);
+  });
+  const req = _ldFetch(url, Object.assign({}, opts, ctrl ? { signal: ctrl.signal } : {}));
+  return Promise.race([req, timeout]).finally(() => { clearTimeout(timer); ldJobs.delete(id); ldRender(); });
+};
+</script>
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v6.4 — Delete removed logs permanently · Sheet size (Admin)                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+.sz-bar{height:10px;background:var(--panel-alt);border-radius:6px;overflow:hidden;margin:8px 0 4px}
+.sz-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#10B981,#F59E0B 70%,#EF4444)}
+.sz-tabs{width:100%;font-size:12.5px;border-collapse:collapse;margin-top:10px}
+.sz-tabs td{padding:5px 8px;border-bottom:1px solid var(--border)}
+.sz-tabs td:not(:first-child){text-align:right;font-family:var(--font-mono);font-size:12px}
+</style>
+<script>
+Object.assign(LD_LABELS, { api_purgeRemovedLogs: 'Deleting removed logs from the sheet', api_getSheetStats: 'Checking the sheet size', api_compactSheet: 'Removing empty rows' });
+
+async function purgeRemovedLogs(logIds) {
+  const one = Array.isArray(logIds) && logIds.length === 1;
+  const n = one ? 1 : (deletedLogsCache || []).filter(d => !d.purgedAt).length;
+  if (!n) { toast('There are no removed logs to delete', 'info'); return; }
+  if (!confirm((one ? `Delete log ${logIds[0]} permanently?` : `Delete ${n} removed log(s) permanently?`) +
+    '\n\nTheir ticket rows are erased from the sheet to free space. A one-line record (who removed it, when and why) stays in the Admin history.\n\nThis can\'t be undone — they can no longer be restored.')) return;
+  try {
+    const r = await apiData('api_purgeRemovedLogs', logIds || []);
+    toast(`🧹 Deleted ${r.logs} log(s) — ${r.entries + r.removals} rows erased, ${r.trimmedRows} empty rows trimmed`, 'success');
+    deletedLogsCache = null; sizeCache = null;
+    if (VIEWS[currentView]) VIEWS[currentView].render();
+  } catch (e) { toast('Could not delete: ' + e.message, 'info'); }
+}
+
+// ─── Admin → 📦 Sheet size ───────────────────────────────────────────────────
+let sizeCache = null;
+function sizeCardHtml() {
+  const s = sizeCache;
+  const fmt = n => Number(n).toLocaleString('en-US');
+  const body = !s ? '<div class="lr-muted">Checking…</div>' : s.error ? `<div class="lr-muted">⚠️ ${lrEsc(s.error)}</div>` : `
+    <div style="display:flex;justify-content:space-between;font-size:13px"><strong>${s.percent}% used</strong><span class="lr-muted">${fmt(s.totalCells)} of ${fmt(s.limit)} cells</span></div>
+    <div class="sz-bar"><div class="sz-fill" style="width:${Math.max(1, Math.min(100, s.percent))}%"></div></div>
+    <div class="lr-muted" style="font-size:11.5px">${s.percent < 50 ? '✅ Plenty of room.' : s.percent < 80 ? '⚠️ Getting fuller — consider deleting removed logs.' : '🚨 Close to Google\'s limit — clean up soon.'} Empty rows count too, so trimming them helps.</div>
+    <table class="sz-tabs"><tbody>${s.tabs.slice(0, 6).map(t => `<tr><td>${lrEsc(t.name)}</td><td>${fmt(t.dataRows)} rows</td><td>${fmt(t.cells)} cells</td></tr>`).join('')}</tbody></table>`;
+  return `<div class="admin-card" id="sz-card">
+    <div class="admin-card-hdr"><div class="admin-card-icon" style="background:#DCFCE7;color:#15803D;font-size:18px">📦</div>
+      <div style="flex:1"><div class="admin-card-title">Sheet size</div><div class="admin-card-desc">How much of the Google Sheet's space is in use.</div></div></div>
+    <div class="admin-card-body">${body}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      ${s && s.removedNotPurged ? `<button class="btn btn-primary btn-sm" style="background:var(--c-red)" onclick="purgeRemovedLogs()">🧹 Delete removed logs (${s.removedNotPurged})</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="compactSheet()">✂️ Remove empty rows</button>
+      <button class="btn btn-ghost btn-sm" onclick="sizeCache=null;loadSheetSize()">↻ Refresh</button>
+      ${s && s.url ? `<a class="btn btn-ghost btn-sm" href="${s.url}" target="_blank">Open sheet ↗</a>` : ''}
+    </div></div>`;
+}
+async function loadSheetSize() {
+  const el = document.getElementById('sz-card'); if (el) el.outerHTML = sizeCardHtml();
+  try { sizeCache = await apiData('api_getSheetStats'); } catch (e) { sizeCache = { error: e.message }; }
+  const el2 = document.getElementById('sz-card'); if (el2) el2.outerHTML = sizeCardHtml();
+}
+async function compactSheet() {
+  try { const r = await apiData('api_compactSheet'); toast(`✂️ Removed ${Number(r.trimmedRows).toLocaleString('en-US')} empty rows`, 'success'); sizeCache = null; loadSheetSize(); }
+  catch (e) { toast(e.message, 'info'); }
+}
+if (VIEWS.admin) {
+  const _szAdmin = VIEWS.admin.render;
+  VIEWS.admin.render = function () {
+    const r = _szAdmin.apply(this, arguments);
+    const grid = document.querySelector('#content .admin-grid');
+    if (grid && can('viewAdmin') && !viewAsRole) {
+      const danger = grid.querySelector('.v6-card-danger');
+      danger ? danger.insertAdjacentHTML('beforebegin', sizeCardHtml()) : grid.insertAdjacentHTML('beforeend', sizeCardHtml());
+      if (!sizeCache) loadSheetSize();
+    }
+    return r;
+  };
+}
+</script>
+
+
 
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <!-- GOOGLE SIGN-IN + APP BOOTSTRAP -->
