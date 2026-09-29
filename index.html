@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v5.1</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.1</div>
   </div>
 </div>
 
@@ -2293,22 +2293,22 @@ function renderDashboardView() {
       </div>
       <div class="panel">
         <div class="panel-title">Avg Resolution by Hold Reason</div>
-        ${[['Engineering',9.4,'var(--c-red)'],['Finance',7.8,'var(--c-amber)'],['Logistics',6.2,'var(--c-amber)'],['Operations',5.1,'var(--c-green)'],['Product',4.3,'var(--c-green)']].map(([r,d,c])=>`<div class="bar-row"><div class="bar-label">${r}</div><div class="bar-track"><div class="bar-fill" style="width:${(d/12)*100}%;background:${c}"></div></div><div class="bar-num" style="color:${c}">${d}d</div></div>`).join('')}
+        ${liveOr('holdAvg', [['Engineering',9.4,'var(--c-red)'],['Finance',7.8,'var(--c-amber)'],['Logistics',6.2,'var(--c-amber)'],['Operations',5.1,'var(--c-green)'],['Product',4.3,'var(--c-green)']]).map(([r,d,c])=>`<div class="bar-row"><div class="bar-label">${r}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,(d/liveMax('holdAvg',12))*100)}%;background:${c}"></div></div><div class="bar-num" style="color:${c}">${d}d</div></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">Aging Distribution</div>
-        ${[['0-7 days',9,'var(--c-green)'],['8-14 days',4,'var(--c-amber)'],['15-21 days',1,'var(--c-orange)'],['21+ days',0,'var(--c-red)']].map(([b,n,c])=>`<div class="bar-row"><div class="bar-label">${b}</div><div class="bar-track"><div class="bar-fill" style="width:${(n/14)*100}%;background:${c}"></div></div><div class="bar-num" style="color:${c}">${n}</div></div>`).join('')}
+        ${liveOr('aging', [['0-7 days',9,'var(--c-green)'],['8-14 days',4,'var(--c-amber)'],['15-21 days',1,'var(--c-orange)'],['21+ days',0,'var(--c-red)']]).map(([b,n,c])=>`<div class="bar-row"><div class="bar-label">${b}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,(n/liveMax('aging',14))*100)}%;background:${c}"></div></div><div class="bar-num" style="color:${c}">${n}</div></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">Top Specialists by Volume</div>
-        ${[['Carlos Rivera',3,1,0],['Maria Chen',2,0,1],['Luis Ramos',2,0,0],['Ana Torres',1,0,0],['Ximena Angulo',1,1,0]].map(([n,t,b,i])=>`<div class="bar-row"><div class="bar-label">${n}</div><div class="bar-track"><div class="bar-fill" style="width:${t*30}%;background:var(--c-purple)"></div></div><div style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-3);min-width:60px;text-align:right">${t}t ${b?`<span style="color:var(--c-red)">·${b}b</span>`:''} ${i?`<span style="color:var(--c-amber)">·${i}f</span>`:''}</div></div>`).join('')}
+        ${liveOr('topSpec', [['Carlos Rivera',3,1,0],['Maria Chen',2,0,1],['Luis Ramos',2,0,0],['Ana Torres',1,0,0],['Ximena Angulo',1,1,0]]).map(([n,t,b,i])=>`<div class="bar-row"><div class="bar-label">${n}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,t*liveScale('topSpec',30))}%;background:var(--c-purple)"></div></div><div style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-3);min-width:60px;text-align:right">${t}t ${b?`<span style="color:var(--c-red)">·${b}b</span>`:''} ${i?`<span style="color:var(--c-amber)">·${i}f</span>`:''}</div></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">Incorrect On-Hold Trend (14d)</div>
         <div style="display:flex;align-items:end;gap:4px;height:150px;padding:8px 0">
-          ${[1,0,2,1,0,1,3,2,1,0,2,1,2,3].map(n=>`<div style="flex:1;background:${n>1?'var(--c-red)':n>0?'var(--c-amber)':'var(--border)'};border-radius:3px 3px 0 0;height:${Math.max(6,n*36)}px"></div>`).join('')}
+          ${liveOr('flagTrend', [1,0,2,1,0,1,3,2,1,0,2,1,2,3]).map(n=>`<div style="flex:1;background:${n>1?'var(--c-red)':n>0?'var(--c-amber)':'var(--border)'};border-radius:3px 3px 0 0;height:${Math.max(6,n*36)}px"></div>`).join('')}
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);font-family:var(--font-mono);margin-top:8px"><span>May 19</span><span>May 26</span><span>Jun 1</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);font-family:var(--font-mono);margin-top:8px">${liveOr('trendLabels','<span>May 19</span><span>May 26</span><span>Jun 1</span>')}</div>
       </div>
     </div>
   `;
@@ -2364,8 +2364,8 @@ function renderTicketsView() {
         </table>
       </div>
       <div class="tfoot">
-        <span><strong>14</strong> tickets · <strong style="color:#7E22CE">11 on-hold</strong> · <strong style="color:var(--c-red)">3 SLA breached</strong> · <strong style="color:var(--c-amber)">2 flagged</strong></span>
-        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-mute)">Last upload Jun 1 · 12:18</span>
+        ${liveOr('ticketsFooter', `<span><strong>14</strong> tickets · <strong style="color:#7E22CE">11 on-hold</strong> · <strong style="color:var(--c-red)">3 SLA breached</strong> · <strong style="color:var(--c-amber)">2 flagged</strong></span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-mute)">Last upload Jun 1 · 12:18</span>`)}
       </div>
     </div>
   `;
@@ -2761,11 +2761,11 @@ function renderIncorrectView() {
     <div class="panel-grid">
       <div class="panel">
         <div class="panel-title">Flagged by Specialist (30d)</div>
-        ${[['Maria Chen',3],['Zoe Quiroga',2],['Ana Torres',1],['Luis Ramos',1]].map(([n,c])=>`<div class="bar-row"><div class="bar-label">${n}</div><div class="bar-track"><div class="bar-fill" style="width:${c*25}%;background:var(--c-amber)"></div></div><div class="bar-num" style="color:var(--c-amber)">${c}</div></div>`).join('')}
+        ${liveOr('flagBySpec', [['Maria Chen',3],['Zoe Quiroga',2],['Ana Torres',1],['Luis Ramos',1]]).map(([n,c])=>`<div class="bar-row"><div class="bar-label">${n}</div><div class="bar-track"><div class="bar-fill" style="width:${c*25}%;background:var(--c-amber)"></div></div><div class="bar-num" style="color:var(--c-amber)">${c}</div></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">Common Flag Reasons</div>
-        ${[['Should be Pending',4],['No external dependency',3],['Wrong hold reason',2],['No follow-up scheduled',1]].map(([r,c])=>`<div class="bar-row"><div class="bar-label" title="${r}">${r}</div><div class="bar-track"><div class="bar-fill" style="width:${c*25}%;background:var(--c-purple)"></div></div><div class="bar-num" style="color:var(--c-purple)">${c}</div></div>`).join('')}
+        ${liveOr('flagReasons', [['Should be Pending',4],['No external dependency',3],['Wrong hold reason',2],['No follow-up scheduled',1]]).map(([r,c])=>`<div class="bar-row"><div class="bar-label" title="${r}">${r}</div><div class="bar-track"><div class="bar-fill" style="width:${c*25}%;background:var(--c-purple)"></div></div><div class="bar-num" style="color:var(--c-purple)">${c}</div></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">Pending by Supervisor</div>
@@ -3437,9 +3437,9 @@ function renderPerformanceView() {
 
   const totalClosed   = board.reduce((s, l) => s + l.closed, 0);
   const totalReviewed = board.reduce((s, l) => s + l.reviewed, 0);
-  const avgClosed     = (totalClosed / board.length).toFixed(1);
+  const avgClosed     = board.length ? (totalClosed / board.length).toFixed(1) : '0';
   const teamRate      = totalReviewed ? Math.round((totalClosed / totalReviewed) * 100) : 0;
-  const topPerformer  = board[0];
+  const topPerformer  = board[0] || { name: 'No closures yet', closed: 0, wow: 0 };
 
   // Aggregate by day-of-week (Mon-Sun)
   const dowTotals = [0,0,0,0,0,0,0];
@@ -6009,6 +6009,678 @@ if (VIEWS.admin) {
 applyRoleNav();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v6 MODULE — Back/close navigation · Live data (no examples) · Actions saved   -->
+<!--             to the Sheet · Remove logs · Admin reset to zero                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+#nav-back-btn{margin-right:4px}
+.v6-card-danger{border:1.5px solid #FECACA}
+.v6-list{font-size:12.5px;color:var(--text-2);line-height:1.7;margin:6px 0 10px 18px;padding:0}
+.v6-input{width:100%;box-sizing:border-box;font-family:var(--font-sans);font-size:13.5px;border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.v6-mode{background:var(--panel-alt);border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.6;margin-bottom:12px}
+</style>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. NAVIGATION — ← Back on every screen · Esc closes pop-ups · browser Back works
+// ═══════════════════════════════════════════════════════════════════════════
+const navStack = [];
+let navFromBack = false;
+let navCurrentLog = null;
+const _v6SetView = setView;
+setView = function (v) {
+  if (v === 'import') return _v6SetView(v);
+  const from = currentView;
+  const leaving = from && (from !== v || v === 'logDetail');
+  if (!navFromBack && leaving) {
+    navStack.push({ view: from, logId: navCurrentLog });
+    if (navStack.length > 40) navStack.shift();
+    try { history.pushState({ onhold: true }, ''); } catch (e) {}
+  }
+  navFromBack = false;
+  const r = _v6SetView(v);
+  navCurrentLog = (typeof selectedLogId !== 'undefined') ? selectedLogId : null;
+  ensureBackButton();
+  return r;
+};
+function goBack() {
+  const prev = navStack.pop();
+  navFromBack = true;
+  if (!prev) { setView('dashboard'); return; }
+  if (prev.view === 'logDetail' && prev.logId) selectedLogId = prev.logId;
+  setView(prev.view);
+}
+function appBack() { if (navStack.length) history.back(); else goBack(); }
+function topOpenModal() { const all = document.querySelectorAll('.modal-backdrop.open'); return all.length ? all[all.length - 1] : null; }
+window.addEventListener('popstate', () => {
+  const m = topOpenModal();
+  if (m) { m.classList.remove('open'); try { history.pushState({ onhold: true }, ''); } catch (e) {} return; }
+  goBack();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const m = topOpenModal();
+  if (m) { m.classList.remove('open'); e.preventDefault(); }
+});
+try { history.replaceState({ onhold: true }, ''); } catch (e) {}
+
+function ensureBackButton() {
+  if (!navStack.length || currentView === 'logDetail') return;   // log detail has its own "← All Logs"
+  const hdr = document.querySelector('#content .page-hdr');
+  if (!hdr || hdr.querySelector('#nav-back-btn')) return;
+  let actions = hdr.querySelector('.page-actions');
+  if (!actions) { actions = document.createElement('div'); actions.className = 'page-actions'; hdr.appendChild(actions); }
+  const prev = navStack[navStack.length - 1];
+  const names = { dashboard: 'Dashboard', tickets: 'Active On-Hold', leads: 'Lead Monitoring', dailylog: 'Daily Log', closed: 'Closed', solved: 'Solved',
+    performance: 'Lead Performance', analytics: 'Analytics', incorrect: 'Incorrect Usage', team: 'Team Hierarchy', admin: 'Admin', guide: 'Guide',
+    logs: 'Upload Logs', logDetail: 'Log', removed: 'Removed', reappeared: 'Reappeared', hierarchy: 'Hierarchy' };
+  actions.insertAdjacentHTML('afterbegin', `<button id="nav-back-btn" class="btn btn-ghost btn-sm" onclick="appBack()" title="Back (Esc closes pop-ups)">← Back to ${names[prev.view] || 'previous'}</button>`);
+}
+new MutationObserver(ensureBackButton).observe(document.getElementById('content'), { childList: true });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2. LIVE DATA — on the live site, example data is replaced by the Sheet's data
+//    (or zero). The preview keeps the examples for demos.
+// ═══════════════════════════════════════════════════════════════════════════
+let LIVE = false;
+let LIVE_DATA = { tickets: [], flagged: [], solved: [], logs: [], hierarchy: [], leadActions: [], audit: [], config: {} };
+let LIVE_CALC = {};
+const initialsOf = n => String(n || '?').split(/\s+/).filter(Boolean).map(p => p[0]).join('').slice(0, 2).toUpperCase() || '?';
+const pad2 = n => String(n).padStart(2, '0');
+const fmtShort = iso => { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+const fmtStamp = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? String(iso) : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+const bucketOf = d => d <= 7 ? '0-7 days' : d <= 14 ? '8-14 days' : d <= 21 ? '15-21 days' : '21+ days';
+const weekStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; };
+const refill = (arr, items) => { arr.splice(0, arr.length, ...items); };
+const slaDays = () => parseInt(LIVE_DATA.config.slaWarningDays, 10) || 14;
+
+function liveOr(key, sample) { return LIVE ? (LIVE_CALC[key] !== undefined ? LIVE_CALC[key] : (Array.isArray(sample) ? [] : '')) : sample; }
+function liveMax(key, sampleMax) { if (!LIVE) return sampleMax; const v = (LIVE_CALC[key] || []).map(x => x[1]); return Math.max(1, ...v); }
+function liveScale(key, sampleScale) { if (!LIVE) return sampleScale; return 100 / Math.max(1, ...(LIVE_CALC[key] || []).map(x => x[1])); }
+
+function applyLiveData(d) {
+  LIVE_DATA = Object.assign({ tickets: [], flagged: [], solved: [], logs: [], hierarchy: [], leadActions: [], audit: [], config: {} }, d || {});
+  const SLA = slaDays();
+  const nowMs = Date.now();
+
+  // Tickets (active queue)
+  refill(TICKETS, LIVE_DATA.tickets.map(t => {
+    const days = parseInt(t.days, 10) || 0;
+    return { id: String(t.id), subject: t.subject || '', reason: t.reason || '', requester: t.requester || '', assignee: t.assignee || '', group: t.group || '',
+      holdReason: t.holdReason || '', days, bucket: bucketOf(days), slaDue: fmtShort(t.requestedAt), requestedAt: t.requestedAt,
+      slaState: days >= SLA ? 'over' : days >= SLA - 3 ? 'soon' : 'ok', status: 'On-Hold',
+      flaggedIncorrect: t.flaggedIncorrect === true || String(t.flaggedIncorrect).toUpperCase() === 'TRUE',
+      flagReason: t.flagReason || '', flaggedAt: t.flaggedAt ? fmtShort(t.flaggedAt) : '', flaggedAtIso: t.flaggedAt || '',
+      feedbackText: t.feedbackText || '', feedbackDelivered: t.feedbackDelivered === true || String(t.feedbackDelivered).toUpperCase() === 'TRUE',
+      feedbackDeliveredAt: t.feedbackDeliveredAt ? fmtShort(t.feedbackDeliveredAt) : '', numFU: parseInt(t.numFollowUps, 10) || 0, reappeared: !!t.reappeared };
+  }));
+
+  // Solved + Closed
+  refill(SOLVED, LIVE_DATA.solved.map(x => ({ id: String(x.ticketId), subject: x.subject || '', source: x.source || 'auto-solved', lead: x.leadName || '',
+    closureReason: x.closureReason || '', notes: x.notes || '', closedAt: fmtStamp(x.closedAt), closedAtIso: x.closedAt,
+    originalAssignee: x.originalAssignee || '', originalDays: parseInt(x.originalDays, 10) || 0 })).sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt))));
+  refill(CLOSED, LIVE_DATA.solved.map(x => { const d = parseInt(x.originalDays, 10) || 0; return { id: String(x.ticketId), subject: x.subject || '',
+    assignee: x.originalAssignee || '', group: x.originalGroup || '', holdReason: '', daysOpen: d, closedAt: fmtStamp(x.closedAt), closedAtIso: x.closedAt,
+    closedBy: x.source === 'lead-closed' ? (x.leadName || 'Lead') : 'Removed from On-Hold', finalBucket: bucketOf(d) }; })
+    .sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt))));
+
+  // Snapshots (from logs, newest first)
+  const logs = LIVE_DATA.logs;
+  refill(SNAPSHOTS, logs.map((l, i) => { const dt = new Date(l.uploadedAt); const next = logs[i + 1];
+    return { date: `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`, time: `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`,
+      total: l.total, breached: i === 0 ? TICKETS.filter(t => t.days >= SLA).length : 0, oldest: i === 0 ? Math.max(0, ...TICKETS.map(t => t.days)) : 0,
+      newTickets: l.newCount, closedTickets: l.removedCount, current: i === 0, dodOpen: next ? l.total - next.total : 0, dodBreach: 0, momOpen: 0,
+      logId: l.logId, owner: l.uploadedByName }; }));
+
+  // Teams (hierarchy + live counts)
+  const bySup = {};
+  LIVE_DATA.hierarchy.forEach(a => {
+    const key = a.supervisorName || 'Unassigned';
+    if (!bySup[key]) bySup[key] = { supervisor: key, role: 'Supervisor', initials: initialsOf(key), onHold: 0, breached: 0, incorrect: 0, agents: [], groups: new Set() };
+    if (a.group) bySup[key].groups.add(a.group);
+    const mine = TICKETS.filter(t => t.assignee.toLowerCase() === a.agentName.toLowerCase());
+    const ag = { name: a.agentName, initials: initialsOf(a.agentName), tickets: mine.length, breach: mine.filter(t => t.days >= SLA).length,
+      incorrect: mine.filter(t => t.flaggedIncorrect && !t.feedbackDelivered).length };
+    bySup[key].agents.push(ag);
+    bySup[key].onHold += ag.tickets; bySup[key].breached += ag.breach; bySup[key].incorrect += ag.incorrect;
+  });
+  refill(TEAMS, Object.values(bySup).map(t => Object.assign(t, { role: t.groups.size ? [...t.groups].join(', ') + ' Supervisor' : 'Supervisor' }))
+    .sort((a, b) => a.supervisor.localeCompare(b.supervisor)));
+
+  // Leads (hierarchy leads/supervisors + anyone who has reviewed + you)
+  const leadNames = new Set();
+  LIVE_DATA.hierarchy.filter(a => /lead|supervisor/i.test(a.role)).forEach(a => leadNames.add(a.agentName));
+  LIVE_DATA.hierarchy.forEach(a => { if (a.supervisorName) leadNames.add(a.supervisorName); });
+  LIVE_DATA.leadActions.forEach(a => { if (a.leadName) leadNames.add(a.leadName); });
+  if (currentUser && currentUser.name) leadNames.add(currentUser.name);
+  const weekAgo = nowMs - 7 * 864e5;
+  refill(LEADS, [...leadNames].sort().map(n => ({ name: n, initials: initialsOf(n),
+    solved7d: SOLVED.filter(x => x.source === 'lead-closed' && x.lead === n && new Date(x.closedAtIso).getTime() >= weekAgo).length })));
+  if (typeof currentLead !== 'undefined' && currentUser && currentUser.name) currentLead = currentUser.name;
+
+  // Lead actions — latest per active ticket (review status survives refresh)
+  Object.keys(LEAD_ACTIONS).forEach(k => delete LEAD_ACTIONS[k]);
+  const active = new Set(TICKETS.map(t => t.id));
+  LIVE_DATA.leadActions.forEach(a => { if (!active.has(a.ticketId)) return;
+    LEAD_ACTIONS[a.ticketId] = { type: a.action, lead: a.leadName, reason: a.closureReason || a.holdReason, notes: a.notes, action: a.followupAction,
+      outcome: a.followupOutcome, nextDate: a.followupNextDate, eta: a.holdEta, justification: a.justification, timestamp: a.timestamp }; });
+
+  // Audit log
+  const actName = { closed: 'closed', followup: 'followup', hold: 'hold', flag: 'flagged', upload: 'uploaded' };
+  refill(AUDIT_LOG, LIVE_DATA.audit.map(a => ({ ts: fmtShort(a.timestamp), actor: a.actorName || a.actorEmail, action: actName[a.action] || a.action,
+    target: a.target, detail: a.detail })));
+  if (typeof ADMIN_CONFIG !== 'undefined') ADMIN_CONFIG.slaWarning = SLA;
+
+  // Lead Performance (this week / last week / 2 weeks ago / rolling 7 days)
+  const ws = weekStart(new Date());
+  const ranges = { '2026-W22': [ws.getTime(), ws.getTime() + 7 * 864e5], '2026-W21': [ws.getTime() - 7 * 864e5, ws.getTime()],
+    '2026-W20': [ws.getTime() - 14 * 864e5, ws.getTime() - 7 * 864e5], rolling: [nowMs - 7 * 864e5, nowMs + 1] };
+  const lbl = (a, b) => new Date(a).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + new Date(b - 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const prefix = { '2026-W22': 'This Week · ', '2026-W21': 'Last Week · ', '2026-W20': '', rolling: 'Rolling · ' };
+  Object.keys(ranges).forEach(k => {
+    const [a, b] = ranges[k];
+    const byLead = {};
+    LIVE_DATA.leadActions.forEach(x => { const t = new Date(x.timestamp).getTime(); if (!(t >= a && t < b)) return;
+      const n = x.leadName || 'Unknown';
+      const r = byLead[n] || (byLead[n] = { closed: 0, reviewed: 0, byReason: {}, byDay: [0, 0, 0, 0, 0, 0, 0] });
+      r.reviewed++;
+      if (x.action === 'close') { r.closed++; r.byDay[new Date(t).getDay()]++; const rs = x.closureReason || 'Resolved'; r.byReason[rs] = (r.byReason[rs] || 0) + 1; } });
+    PERFORMANCE_WEEKS[k] = { label: k === 'rolling' ? 'Rolling · Last 7 Days' : prefix[k] + lbl(a, b), byLead };
+  });
+
+  // Analytics trends (from logs)
+  const asc = logs.slice().reverse();
+  const group = (keyFn, labelFn, limit) => {
+    const m = new Map();
+    asc.forEach(l => { const k = keyFn(new Date(l.uploadedAt)); const g = m.get(k) || { label: labelFn(new Date(l.uploadedAt)), total: 0, breached: 0, breachPct: 0, newT: 0, closed: 0 };
+      g.total = l.total; g.newT += l.newCount; g.closed += l.removedCount; m.set(k, g); });
+    const out = [...m.values()].slice(-limit);
+    if (out.length) { const last = out[out.length - 1]; last.breached = TICKETS.filter(t => t.days >= SLA).length; last.breachPct = last.total ? Math.round(last.breached / last.total * 100) : 0; }
+    return out;
+  };
+  if (typeof ANALYTICS_DAYS !== 'undefined') {
+    refill(ANALYTICS_DAYS, group(d => d.toDateString(), d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 30));
+    refill(ANALYTICS_WEEKS, group(d => weekStart(d).getTime(), d => { const s = weekStart(d); return lbl(s.getTime(), s.getTime() + 7 * 864e5); }, 12));
+    refill(ANALYTICS_MONTHS, group(d => d.getFullYear() * 12 + d.getMonth(), d => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), 12));
+    refill(ANALYTICS_BY_SUPERVISOR, []);
+    refill(ANALYTICS_BY_REASON, []);
+  }
+
+  // Calculated panels & KPIs
+  const act = TICKETS;
+  const flaggedPending = act.filter(t => t.flaggedIncorrect && !t.feedbackDelivered);
+  const oldest = act.slice().sort((a, b) => b.days - a.days)[0];
+  const avg = xs => xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
+  const color = d => d >= SLA ? 'var(--c-red)' : d >= SLA / 2 ? 'var(--c-amber)' : 'var(--c-green)';
+  const holdGroups = {};
+  act.forEach(t => { const k = (t.holdReason || 'No hold reason').replace(/^Waiting for /, ''); (holdGroups[k] = holdGroups[k] || []).push(t.days); });
+  const specCounts = {};
+  act.forEach(t => { const k = t.assignee || 'Unassigned'; const r = specCounts[k] || (specCounts[k] = [k, 0, 0, 0]); r[1]++; if (t.days >= SLA) r[2]++; if (t.flaggedIncorrect) r[3]++; });
+  const trend = []; for (let i = 13; i >= 0; i--) { const day = new Date(nowMs - i * 864e5).toDateString();
+    trend.push(LIVE_DATA.flagged.filter(f => f.flaggedAt && new Date(f.flaggedAt).toDateString() === day).length); }
+  const dLabel = i => new Date(nowMs - i * 864e5).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const countBy = (xs, f) => { const m = {}; xs.forEach(x => { const k = f(x) || '—'; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6); };
+  const latest = SNAPSHOTS[0];
+  const closed7 = CLOSED.filter(c => new Date(c.closedAtIso).getTime() >= weekAgo);
+  const closedToday = CLOSED.filter(c => new Date(c.closedAtIso).toDateString() === new Date().toDateString());
+  const delivered = act.filter(t => t.flaggedIncorrect && t.feedbackDelivered);
+  const topSpec = countBy(act.filter(t => t.flaggedIncorrect), t => t.assignee)[0];
+  const fbTimes = LIVE_DATA.flagged.filter(f => f.feedbackDelivered && f.flaggedAt && f.feedbackDeliveredAt)
+    .map(f => (new Date(f.feedbackDeliveredAt) - new Date(f.flaggedAt)) / 864e5);
+
+  LIVE_CALC = {
+    holdAvg: Object.entries(holdGroups).map(([k, ds]) => { const a = Math.round(avg(ds) * 10) / 10; return [k, a, color(a)]; }).sort((a, b) => b[1] - a[1]).slice(0, 6),
+    aging: [['0-7 days', act.filter(t => t.days <= 7).length, 'var(--c-green)'], ['8-14 days', act.filter(t => t.days > 7 && t.days <= 14).length, 'var(--c-amber)'],
+      ['15-21 days', act.filter(t => t.days > 14 && t.days <= 21).length, 'var(--c-orange)'], ['21+ days', act.filter(t => t.days > 21).length, 'var(--c-red)']],
+    topSpec: Object.values(specCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+    flagTrend: trend,
+    trendLabels: `<span>${dLabel(13)}</span><span>${dLabel(7)}</span><span>${dLabel(0)}</span>`,
+    flagBySpec: countBy(act.filter(t => t.flaggedIncorrect), t => t.assignee),
+    flagReasons: countBy(act.filter(t => t.flaggedIncorrect), t => t.flagReason || 'Not specified'),
+    ticketsFooter: `<span><strong>${act.length}</strong> tickets · <strong style="color:var(--c-red)">${act.filter(t => t.days >= SLA).length} SLA breached</strong> · <strong style="color:var(--c-amber)">${flaggedPending.length} flagged</strong></span>
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-mute)">${latest ? 'Last upload ' + fmtShort(logs[0].uploadedAt) : 'No uploads yet'}</span>`,
+    kpi: {
+      'Total On-Hold': [String(act.length), latest ? 'Last upload ' + fmtShort(logs[0].uploadedAt) : 'No uploads yet'],
+      'New Since Last Upload': ['+' + (latest ? latest.newTickets : 0), 'vs. previous log'],
+      'Closed Since Last Upload': ['−' + (latest ? latest.closedTickets : 0), 'Removed from On-Hold'],
+      'Oldest Ticket': [oldest ? oldest.days + 'd' : '—', oldest ? '#' + oldest.id + ' · ' + String(oldest.subject).slice(0, 22) : 'No tickets'],
+      'Flagged Incorrect': [String(flaggedPending.length), 'Awaiting feedback'],
+      'SLA Breached': [String(act.filter(t => t.days >= SLA).length), 'Over ' + SLA + '-day SLA'],
+      'Avg Days Blocked': [act.length ? (Math.round(avg(act.map(t => t.days)) * 10) / 10) + 'd' : '—', 'Across all open'],
+      'Resolved · 7d': [String(closed7.length), 'Last 7 days'],
+      'Closed · 7d': [String(closed7.length), 'Last 7 days'],
+      'Avg Time Open': [CLOSED.length ? (Math.round(avg(CLOSED.map(c => c.daysOpen)) * 10) / 10) + 'd' : '—', 'From on-hold to close'],
+      'Closed Today': [String(closedToday.length), 'Today'],
+      'Within SLA': [String(CLOSED.filter(c => c.daysOpen < SLA).length), CLOSED.length ? Math.round(CLOSED.filter(c => c.daysOpen < SLA).length / CLOSED.length * 100) + '% closed in time' : 'No closures yet'],
+      'Delivered · 7d': [String(LIVE_DATA.flagged.filter(f => f.feedbackDelivered && new Date(f.feedbackDeliveredAt).getTime() >= weekAgo).length), 'Feedback shared with specialist'],
+      'Top Specialist': [topSpec ? String(topSpec[1]) : '0', topSpec ? topSpec[0] : 'No flags yet'],
+      'Avg Time to Feedback': [fbTimes.length ? (Math.round(avg(fbTimes) * 10) / 10) + 'd' : '—', 'From flag to delivery'],
+    },
+  };
+  updateSidebarCounts();
+}
+
+// On the live site, KPI cards use calculated values and never show example trends
+const _v6Kpi = kpiCard;
+kpiCard = function (label, value, sub, c, soft, opts) {
+  if (!LIVE) return _v6Kpi(label, value, sub, c, soft, opts);
+  const k = LIVE_CALC.kpi && LIVE_CALC.kpi[label];
+  return _v6Kpi(label, k ? k[0] : value, k ? k[1] : sub, c, soft, {});
+};
+
+function updateSidebarCounts() {
+  if (!LIVE) return;
+  const SLA = slaDays();
+  const set = (view, n) => { const b = document.querySelector(`.sb-link[data-view="${view}"] .sb-badge`); if (b) { b.textContent = n; b.style.display = n ? '' : 'none'; } };
+  set('tickets', TICKETS.length);
+  set('leads', TICKETS.filter(t => !LEAD_ACTIONS[t.id]).length);
+  set('closed', CLOSED.length);
+  set('solved', SOLVED.length);
+  set('incorrect', TICKETS.filter(t => t.flaggedIncorrect && !t.feedbackDelivered).length);
+  set('overdue', TICKETS.filter(t => t.days >= SLA).length);
+}
+
+const ARRAY_VIEWS = new Set(['dashboard', 'tickets', 'closed', 'solved', 'performance', 'incorrect', 'team', 'analytics', 'admin', 'dailylog']);
+let _liveBusy = false;
+async function loadLiveData(rerender) {
+  if (!window.SERVER_USER || _liveBusy) return;
+  _liveBusy = true;
+  try {
+    applyLiveData(await apiData('api_getLiveData'));
+    if (rerender !== false && ARRAY_VIEWS.has(currentView) && !topOpenModal() && VIEWS[currentView]) VIEWS[currentView].render();
+  } catch (e) { toast('Could not load data from the sheet: ' + e.message, 'info'); }
+  finally { _liveBusy = false; }
+}
+let _liveTimer = null;
+function scheduleLiveReload() { clearTimeout(_liveTimer); _liveTimer = setTimeout(() => loadLiveData(true), 700); }
+
+// Structural changes trigger a refresh of the live data
+const LIVE_MUTATIONS = new Set(['api_setRemovalOutcome', 'api_upsertAgent', 'api_deleteAgent', 'api_importHierarchy', 'api_deleteLog', 'api_restoreLog', 'api_resetAllData', 'api_revertLastUpload']);
+const _v6ApiData = apiData;
+apiData = async function (method, ...args) {
+  const r = await _v6ApiData(method, ...args);
+  if (LIVE_MUTATIONS.has(method)) scheduleLiveReload();
+  return r;
+};
+const _v6Invalidate = invalidateLogCaches;
+invalidateLogCaches = function () { _v6Invalidate(); if (LIVE) scheduleLiveReload(); };
+
+// Daily Log shows real uploads on the live site
+if (VIEWS.dailylog) { const _dl = VIEWS.dailylog.render; VIEWS.dailylog.render = function () { return LIVE ? renderLogsView() : _dl.apply(this, arguments); }; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 3. ACTIONS SAVE TO THE SHEET — close / follow-up / hold · flag · hold reason · feedback
+// ═══════════════════════════════════════════════════════════════════════════
+function persist(method, args, label) {
+  if (!window.SERVER_USER) return;   // preview: screen-only
+  apiData(method, ...args).catch(e => toast('⚠️ ' + label + ' was NOT saved to the sheet: ' + e.message, 'info'));
+}
+const _v6SaveAndNext = saveAndNext;
+saveAndNext = function (ticketId) {
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const type = pendingAction;
+  let action = null;
+  if (type === 'close') action = { type, lead: val('close-lead'), reason: val('close-reason'), notes: val('close-notes') };
+  else if (type === 'followup') action = { type, action: val('fu-action'), outcome: val('fu-outcome'), nextDate: val('fu-next'), lead: val('fu-lead'), notes: val('fu-notes') };
+  else if (type === 'hold') action = { type, reason: val('hold-reason'), eta: val('hold-eta'), justification: val('hold-just'), lead: currentLead };
+  const r = _v6SaveAndNext(ticketId);
+  if (action) persist('api_leadAction', [ticketId, action], 'This review');
+  updateSidebarCounts();
+  return r;
+};
+const _v6SaveFeedback = saveFeedback;
+saveFeedback = function () {
+  const el = document.getElementById('feedback-text');
+  const text = el ? el.value.trim() : '';
+  const id = activeFeedbackTicketId;
+  const r = _v6SaveFeedback.apply(this, arguments);
+  if (text && id && can('deliverFeedback')) persist('api_deliverFeedback', [id, text], 'This feedback');
+  return r;
+};
+const _v6QuickFlag = quickFlag;
+quickFlag = function (id) {
+  const r = _v6QuickFlag.apply(this, arguments);
+  const t = TICKETS.find(x => x.id === id);
+  if (t) persist(t.flaggedIncorrect ? 'api_flagIncorrect' : 'api_unflagIncorrect', t.flaggedIncorrect ? [id, t.flagReason || 'Flagged from Active On-Hold'] : [id], 'This flag');
+  updateSidebarCounts();
+  return r;
+};
+const _v6BulkFlag = bulkFlag;
+bulkFlag = function () {
+  const ids = [...selected];
+  ids.forEach(id => { const t = TICKETS.find(x => x.id === id); if (t) { t.flaggedIncorrect = true; t.flagReason = t.flagReason || 'Bulk flag'; } });
+  const r = _v6BulkFlag.apply(this, arguments);
+  ids.forEach(id => persist('api_flagIncorrect', [id, 'Bulk flag'], 'Flag #' + id));
+  if (VIEWS[currentView]) VIEWS[currentView].render();
+  updateSidebarCounts();
+  return r;
+};
+const _v6SaveHold = saveHoldReason;
+saveHoldReason = function (selEl, id) {
+  const r = _v6SaveHold.apply(this, arguments);
+  persist('api_updateHoldReason', [id, selEl.value], 'This hold reason');
+  return r;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. REMOVE LOGS — Supervisor & Admin. Admin-only history with timestamps.
+// ═══════════════════════════════════════════════════════════════════════════
+let deletedLogsCache = null;
+function openRemoveLogModal(logId) {
+  if (!can('removeRecords')) { toast('Supervisor or Admin access required', 'info'); return; }
+  const l = (logsCache || []).find(x => x.logId === logId) || (logDetailCache[logId] && logDetailCache[logId].log);
+  if (!l) return;
+  const isLatest = logsCache && logsCache[0] && logsCache[0].logId === logId;
+  hmModal('v6-remove-modal', 'Remove log', 520);
+  document.getElementById('v6-remove-modal-title').textContent = 'Remove log ' + logId;
+  document.getElementById('v6-remove-modal-body').innerHTML = `
+    <div style="font-size:13px;margin-bottom:10px">Uploaded <strong>${lrDT(l.uploadedAt)}</strong> by <strong>${lrEsc(l.uploadedByName)}</strong> · ${l.total} tickets</div>
+    <div class="v6-mode">${isLatest
+      ? `⏪ <strong>This is the most recent log</strong>, so removing it also <strong>undoes its changes</strong>:<ul class="v6-list" style="margin-bottom:0">
+          <li>${l.newCount} new ticket(s) it added are removed</li><li>${l.removedCount} ticket(s) it marked "Removed" go back to On-Hold</li><li>${l.reappearedCount} reappearance(s) are undone</li></ul>`
+      : `🗂️ <strong>This is an older log.</strong> It will be hidden from Upload Logs. Ticket statuses stay as they are — later logs already build on it.`}</div>
+    <label style="font-size:11.5px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Reason <span style="color:var(--c-red)">*</span></label>
+    <input id="v6-remove-reason" class="v6-input" placeholder="e.g. Duplicate upload, wrong file">
+    <div class="lr-muted" style="margin-top:10px">🔒 Only Admins can see removed logs, with who removed them and when.</div>`;
+  document.getElementById('v6-remove-modal-ftr').innerHTML = `<button class="btn btn-ghost" onclick="closeModal('v6-remove-modal')">Cancel</button>
+    <button class="btn btn-primary" id="v6-remove-btn" style="background:var(--c-red)" onclick="confirmRemoveLog('${lrEsc(logId)}')">🗑 Remove log</button>`;
+  openModal('v6-remove-modal');
+  setTimeout(() => document.getElementById('v6-remove-reason').focus(), 50);
+}
+async function confirmRemoveLog(logId) {
+  const reason = document.getElementById('v6-remove-reason').value.trim();
+  if (!reason) { toast('Please add a reason', 'info'); return; }
+  const btn = document.getElementById('v6-remove-btn'); btn.disabled = true; btn.textContent = 'Removing…';
+  try {
+    const r = await apiData('api_deleteLog', logId, reason);
+    closeModal('v6-remove-modal');
+    toast(r.mode === 'reverted' ? `✓ Log removed and its changes undone (−${r.removed} new · +${r.restored} restored)` : '✓ Log removed from history', 'success');
+    invalidateLogCaches(); deletedLogsCache = null;
+    if (currentView === 'logDetail') { navFromBack = true; setView('logs'); } else renderLogsView(true);
+  } catch (e) { toast('Could not remove: ' + e.message, 'info'); btn.disabled = false; btn.textContent = '🗑 Remove log'; }
+}
+async function restoreLog(logId) {
+  if (!confirm('Restore log ' + logId + ' to Upload Logs?')) return;
+  try { await apiData('api_restoreLog', logId); toast('✓ Log restored', 'success'); invalidateLogCaches(); deletedLogsCache = null; renderLogsView(true); }
+  catch (e) { toast(e.message, 'info'); }
+}
+function deletedLogsHtml() {
+  const list = deletedLogsCache;
+  const body = list === null ? '<div class="lr-empty">Loading…</div>' : list.error ? `<div class="lr-empty">⚠️ ${lrEsc(list.error)}</div>`
+    : !list.length ? '<div class="lr-empty">No logs have been removed.</div>'
+    : `<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Log ID</th><th>Uploaded</th><th>Removed At</th><th>Removed By</th><th>Reason</th><th>What happened</th><th></th></tr></thead><tbody>
+      ${list.map(d => `<tr>
+        <td><a class="lr-link" onclick="openLog('${lrEsc(d.logId)}')">${lrEsc(d.logId)}</a></td>
+        <td style="font-size:12.5px">${lrDT(d.uploadedAt)}<div class="lr-muted" style="font-size:11px">${lrEsc(d.uploadedByName)} · ${d.total} tickets</div></td>
+        <td style="font-size:12.5px;font-family:var(--font-mono)">${lrDate(d.deletedAt)}<br>${new Date(d.deletedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</td>
+        <td style="font-size:12.5px">${lrEsc(d.deletedBy)}</td>
+        <td style="font-size:12.5px;max-width:220px;white-space:normal">${lrEsc(d.deleteReason) || '<span class="lr-muted">—</span>'}</td>
+        <td>${d.deleteMode === 'reverted' ? '<span class="lr-chip lr-removed">⏪ Removed & changes undone</span>' : '<span class="lr-chip lr-carried">🙈 Hidden</span>'}</td>
+        <td>${d.canRestore ? `<button class="btn btn-ghost btn-sm" onclick="restoreLog('${lrEsc(d.logId)}')">↩ Restore</button>` : ''}</td>
+      </tr>`).join('')}</tbody></table></div></div>`;
+  return `<div id="v6-deleted-logs"><div class="lr-section-title">🗑️ Removed logs <span class="rp-role rp-Admin">Admin only</span></div>
+    <div class="lr-section-sub">Every removal is timestamped and kept here. Removed logs are hidden from everyone else.</div>${body}</div>`;
+}
+async function loadDeletedLogs() {
+  try { deletedLogsCache = await apiData('api_getDeletedLogs'); } catch (e) { deletedLogsCache = { error: e.message }; }
+  const el = document.getElementById('v6-deleted-logs'); if (el) el.outerHTML = deletedLogsHtml();
+}
+if (VIEWS.logs) {
+  const _v6Logs = VIEWS.logs.render;
+  VIEWS.logs.render = async function () {
+    await _v6Logs.apply(this, arguments);
+    if (currentView !== 'logs') return;
+    const old = document.getElementById('rp-undo-btn'); if (old) old.remove();
+    if (can('removeRecords')) {
+      document.querySelectorAll('#content tbody tr').forEach(tr => {
+        const openBtn = tr.querySelector('button[onclick*="openLog("]');
+        const m = openBtn && openBtn.getAttribute('onclick').match(/openLog\('([^']+)'\)/);
+        if (m && !tr.querySelector('.v6-rm')) openBtn.insertAdjacentHTML('afterend', ` <button class="btn btn-ghost btn-sm v6-rm" style="color:var(--c-red)" title="Remove this log" onclick="event.stopPropagation();openRemoveLogModal('${m[1]}')">🗑</button>`);
+      });
+    }
+    if (can('viewAdmin')) {
+      const c = document.getElementById('content');
+      if (!document.getElementById('v6-deleted-logs')) c.insertAdjacentHTML('beforeend', deletedLogsHtml());
+      if (deletedLogsCache === null) loadDeletedLogs();
+    }
+  };
+}
+if (VIEWS.logDetail) {
+  const _v6Detail = VIEWS.logDetail.render;
+  VIEWS.logDetail.render = async function () {
+    await _v6Detail.apply(this, arguments);
+    if (currentView !== 'logDetail' || !selectedLogId) return;
+    const d = logDetailCache[selectedLogId];
+    const actions = document.querySelector('#content .page-actions');
+    if (!actions || !d) return;
+    const removedLog = deletedLogsCache && Array.isArray(deletedLogsCache) && deletedLogsCache.find(x => x.logId === selectedLogId);
+    if (removedLog) {
+      document.querySelector('#content .page-hdr').insertAdjacentHTML('afterend', `<div class="callout callout-danger" style="margin-bottom:14px"><div class="callout-icon">🗑️</div><div class="callout-body"><strong>This log was removed</strong> on ${lrDT(removedLog.deletedAt)} by ${lrEsc(removedLog.deletedBy)}${removedLog.deleteReason ? ' — “' + lrEsc(removedLog.deleteReason) + '”' : ''}. Only Admins can see it.</div></div>`);
+    } else if (can('removeRecords') && !document.getElementById('v6-rm-detail')) {
+      actions.insertAdjacentHTML('beforeend', ` <button id="v6-rm-detail" class="btn btn-ghost btn-sm" style="color:var(--c-red)" onclick="openRemoveLogModal('${lrEsc(selectedLogId)}')">🗑 Remove log</button>`);
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. ADMIN — backup & reset tracker to zero
+// ═══════════════════════════════════════════════════════════════════════════
+async function downloadBackup() {
+  if (!window.SERVER_USER) { toast('Backups are available on the live site', 'info'); return null; }
+  try {
+    const data = await apiData('api_exportAll');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = 'onhold-tracker-backup-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+    a.click();
+    toast('✓ Backup downloaded', 'success');
+    return data;
+  } catch (e) { toast('Backup failed: ' + e.message, 'info'); return null; }
+}
+function openResetModal() {
+  if (!can('viewAdmin')) return;
+  hmModal('v6-reset-modal', 'Reset tracker to zero', 540);
+  document.getElementById('v6-reset-modal-body').innerHTML = `
+    <div class="v6-mode" style="background:#FEF2F2">
+      <strong>This clears:</strong><ul class="v6-list">
+        <li>All tickets, upload logs and reconciliation history</li><li>Removed / reappeared records and Solved/Open outcomes</li>
+        <li>Lead reviews (close / follow-up / hold) and feedback</li></ul>
+      <strong>This keeps:</strong><ul class="v6-list" style="margin-bottom:0">
+        <li>User roles and the team hierarchy</li><li>Settings and the audit log (the reset is recorded)</li></ul></div>
+    <div style="font-size:13px;margin-bottom:6px">A backup file downloads automatically first. Type <strong>RESET</strong> to confirm:</div>
+    <input id="v6-reset-input" class="v6-input" placeholder="RESET" oninput="document.getElementById('v6-reset-btn').disabled=this.value!=='RESET'">`;
+  document.getElementById('v6-reset-modal-ftr').innerHTML = `<button class="btn btn-ghost" onclick="closeModal('v6-reset-modal')">Cancel</button>
+    <button class="btn btn-primary" id="v6-reset-btn" style="background:var(--c-red)" disabled onclick="confirmReset()">Back up & reset</button>`;
+  openModal('v6-reset-modal');
+}
+async function confirmReset() {
+  const btn = document.getElementById('v6-reset-btn'); btn.disabled = true; btn.textContent = 'Backing up…';
+  const backup = await downloadBackup();
+  if (!backup) { btn.disabled = false; btn.textContent = 'Back up & reset'; toast('Reset cancelled — the backup must succeed first', 'info'); return; }
+  btn.textContent = 'Resetting…';
+  try {
+    await apiData('api_resetAllData', 'RESET');
+    closeModal('v6-reset-modal');
+    invalidateLogCaches(); deletedLogsCache = null;
+    await loadLiveData(false);
+    toast('✓ Tracker reset to zero — ready for your first real upload', 'success');
+    setView('dashboard');
+  } catch (e) { toast('Reset failed: ' + e.message, 'info'); btn.disabled = false; btn.textContent = 'Back up & reset'; }
+}
+if (VIEWS.admin) {
+  const _v6Admin = VIEWS.admin.render;
+  VIEWS.admin.render = function () {
+    const r = _v6Admin.apply(this, arguments);
+    const c = document.getElementById('content');
+    if (!can('viewAdmin') || !c.querySelector('.admin-grid')) return r;
+    // Wire the existing Danger Zone buttons
+    c.querySelectorAll('.btn-danger-outline').forEach(b => {
+      const t = b.textContent.trim();
+      if (t.startsWith('Download Full Backup')) b.onclick = downloadBackup;
+      if (t.startsWith('Reset Snapshots')) { b.textContent = 'Reset tracker to zero…'; b.onclick = openResetModal; }
+    });
+    c.querySelector('.admin-grid').insertAdjacentHTML('beforeend', `<div class="admin-card v6-card-danger" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:16px">
+      <div class="admin-card-icon" style="background:#FEE2E2;color:#B91C1C;font-size:18px">🧹</div>
+      <div style="flex:1"><div class="admin-card-title">Start from zero</div>
+        <div class="admin-card-desc">Clear test uploads and ticket data before going live. Roles and hierarchy are kept, and a backup downloads first.</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="downloadBackup()">⬇ Backup</button>
+      <button class="btn btn-primary btn-sm" style="background:var(--c-red)" onclick="openResetModal()">Reset to zero…</button></div>`);
+    return r;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Startup — on the live site, wipe examples immediately, then load the sheet
+// ═══════════════════════════════════════════════════════════════════════════
+const _v6Start = startApp;
+startApp = function () {
+  if (window.SERVER_USER) { LIVE = true; applyLiveData(null); }
+  _v6Start();
+  if (window.SERVER_USER) loadLiveData(true);
+};
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- VIEW AS — Admins preview the app as a Lead or Supervisor (read-only)          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+#va-banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9000;display:none;align-items:center;gap:10px;
+  background:#0F172A;color:#fff;padding:8px 10px 8px 16px;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.35);font-size:13px;white-space:nowrap}
+#va-banner.show{display:flex}
+#va-banner .va-sw{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-sans)}
+#va-banner .va-sw.active{background:#FDBA74;color:#7C2D12}
+#va-banner .va-exit{background:#fff;color:#0F172A;border:0;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font-sans)}
+body.va-on #content{outline:3px dashed #FDBA74;outline-offset:-3px;border-radius:12px}
+.va-nav{margin:4px 10px 8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06)}
+.va-nav-lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--sidebar-section);margin-bottom:6px}
+.va-nav-row{display:flex;gap:6px}
+.va-nav button{flex:1;border:1px solid rgba(254,215,170,.35);background:transparent;color:var(--sidebar-text);border-radius:8px;padding:5px 6px;font-size:11.5px;cursor:pointer;font-family:var(--font-sans)}
+.va-nav button.active{background:#FDBA74;color:#7C2D12;border-color:#FDBA74;font-weight:700}
+</style>
+<div id="va-banner">
+  <span>👁️ Viewing as <strong id="va-role">Lead</strong> · read-only, nothing is saved</span>
+  <button class="va-sw" data-r="Lead" onclick="enterViewAs('Lead')">Lead</button>
+  <button class="va-sw" data-r="Supervisor" onclick="enterViewAs('Supervisor')">Supervisor</button>
+  <button class="va-exit" onclick="exitViewAs()">✕ Exit preview</button>
+</div>
+<script>
+let viewAsRole = null;
+function realRole() { return (currentUser && currentUser.role) || 'Lead'; }
+function isRealAdmin() { return realRole() === 'Admin'; }
+myRole = function () { return viewAsRole || realRole(); };
+
+function enterViewAs(role) {
+  if (!isRealAdmin()) { toast('Only Admins can use View as', 'info'); return; }
+  if (!viewAsRole) snapshotBeforePreview();
+  viewAsRole = role;
+  document.body.classList.add('va-on');
+  document.getElementById('va-banner').classList.add('show');
+  document.getElementById('va-role').textContent = role;
+  document.querySelectorAll('#va-banner .va-sw').forEach(b => b.classList.toggle('active', b.dataset.r === role));
+  applyRoleNav();
+  closeAllModals();
+  if (!canView(currentView)) { toast(`${role}s can't open this page — showing the Dashboard`, 'info'); setView('dashboard'); }
+  else if (VIEWS[currentView]) VIEWS[currentView].render();
+  toast(`👁️ Now seeing what a ${role} sees`, 'info');
+}
+
+function exitViewAs() {
+  if (!viewAsRole) return;
+  viewAsRole = null;
+  document.body.classList.remove('va-on');
+  document.getElementById('va-banner').classList.remove('show');
+  applyRoleNav();
+  closeAllModals();
+  restoreAfterPreview();
+  toast('Back to your Admin view', 'success');
+}
+function closeAllModals() { document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open')); }
+
+// Anything clicked during a preview only changed the screen — put it back afterwards
+let _vaSnapshot = null;
+function snapshotBeforePreview() {
+  if (typeof LIVE !== 'undefined' && LIVE) { _vaSnapshot = null; return; }   // live: reload from the sheet instead
+  try { _vaSnapshot = JSON.stringify({ t: TICKETS, s: SOLVED, a: LEAD_ACTIONS }); } catch (e) { _vaSnapshot = null; }
+}
+function restoreAfterPreview() {
+  if (typeof LIVE !== 'undefined' && LIVE) { loadLiveData(true); return; }
+  if (_vaSnapshot) {
+    const o = JSON.parse(_vaSnapshot);
+    refill(TICKETS, o.t); refill(SOLVED, o.s);
+    Object.keys(LEAD_ACTIONS).forEach(k => delete LEAD_ACTIONS[k]); Object.assign(LEAD_ACTIONS, o.a);
+    _vaSnapshot = null;
+  }
+  if (VIEWS[currentView]) VIEWS[currentView].render();
+}
+
+// Read-only guard: while previewing, only "get" requests reach the backend
+function vaGuard(fn) {
+  return function (method, ...args) {
+    if (viewAsRole && !/^api_get/.test(String(method))) {
+      return Promise.resolve({ ok: false, error: `👁️ View as ${viewAsRole} is read-only — exit the preview to make changes.` });
+    }
+    return fn.apply(this, [method, ...args]);
+  };
+}
+window.addEventListener('load', () => {
+  if (typeof apiCall === 'function') {
+    const g = vaGuard(apiCall);
+    apiCall = g;
+    if (window.api) window.api.call = g;
+  } else if (window.api) {
+    window.api.call = vaGuard(window.api.call);
+  }
+});
+// Friendlier message than "not saved" while previewing
+const _vaPersist = persist;
+persist = function (method, args, label) {
+  if (viewAsRole) { toast(`👁️ Preview only — as a ${viewAsRole} this would save. Nothing was changed.`, 'info'); return; }
+  return _vaPersist(method, args, label);
+};
+
+// Sidebar switch (Admins only) + role label
+function renderViewAsNav() {
+  let box = document.getElementById('va-nav');
+  const anchor = document.querySelector('.sb-link[data-view="admin"]');
+  if (!anchor) return;
+  if (!box) {
+    anchor.insertAdjacentHTML('beforebegin', `<div class="va-nav" id="va-nav"><div class="va-nav-lbl">👁️ View as</div><div class="va-nav-row">
+      <button data-r="Lead" onclick="enterViewAs('Lead')">Lead</button><button data-r="Supervisor" onclick="enterViewAs('Supervisor')">Supervisor</button>
+      <button data-r="" onclick="exitViewAs()">Me</button></div></div>`);
+    box = document.getElementById('va-nav');
+  }
+  box.style.display = isRealAdmin() ? '' : 'none';
+  box.querySelectorAll('button').forEach(b => b.classList.toggle('active', (b.dataset.r || null) === viewAsRole));
+}
+const _vaApplyNav = applyRoleNav;
+applyRoleNav = function () {
+  _vaApplyNav();
+  const lbl = document.getElementById('sb-user-role-label');
+  if (lbl) lbl.textContent = viewAsRole ? viewAsRole + ' (preview)' : realRole();
+  renderViewAsNav();
+};
+
+// Also offer it from the Admin tab
+if (VIEWS.admin) {
+  const _vaAdmin = VIEWS.admin.render;
+  VIEWS.admin.render = function () {
+    const r = _vaAdmin.apply(this, arguments);
+    const grid = document.querySelector('#content .admin-grid');
+    if (grid && !viewAsRole && isRealAdmin()) {
+      grid.insertAdjacentHTML('afterbegin', `<div class="admin-card" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:16px">
+        <div class="admin-card-icon" style="background:#E0E7FF;color:#3730A3;font-size:18px">👁️</div>
+        <div style="flex:1"><div class="admin-card-title">View as</div><div class="admin-card-desc">See the tracker exactly as a Lead or Supervisor does — same menu, same buttons, real data. Read-only.</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="enterViewAs('Supervisor')">👥 As Supervisor</button>
+        <button class="btn btn-primary btn-sm" onclick="enterViewAs('Lead')">🧑‍💼 As Lead</button></div>`);
+    }
+    return r;
+  };
+}
+// Esc also exits the preview when no pop-up is open
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && viewAsRole && !topOpenModal()) exitViewAs(); }, true);  // capture: runs before the pop-up closer
+applyRoleNav();
+</script>
+
 </div> <!-- end #app-shell -->
 
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
@@ -6017,7 +6689,7 @@ applyRoleNav();
 <script>
 // ⚠️ CONFIGURE THESE TWO BEFORE DEPLOYING
 const GOOGLE_CLIENT_ID = '311124993732-sv5crdiag2ghr2f5u9geupi1b29uqe06.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbyXdgOuzL4lBvCRz05ea9ytBcO1GfOBPSacywu4wBp_w3JAtPuaRN8BQ5ezkgWaPC5R/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycby8vKKwUaw17wSQ1NrzZnj6dN5khS0VCLUZttbaFsogJB0GqU6u6_33cf3buQ329QtQ/exec';
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Sign-in state — stored in memory + sessionStorage so refresh keeps you signed in
