@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.1</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.2</div>
   </div>
 </div>
 
@@ -1979,6 +1979,8 @@ tbody tr:hover .row-acts { opacity: 1; }
 // ═══════════════════════════════════════════════════════════════════════════
 // In Apps Script: window.SERVER_USER is set by the Index template scriptlet.
 // In static/file:// mode (no Apps Script), we fall back to demo users.
+// Zendesk ticket link — change here if your Zendesk address is different
+var ZENDESK_TICKET_URL = 'https://cookunity7314.zendesk.com/agent/tickets/';
 const SERVER_USER = window.SERVER_USER || null;
 const IS_APPS_SCRIPT = typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined';
 
@@ -2261,7 +2263,7 @@ function renderDashboardView() {
               <div class="oldest-rank" style="background:${rankBg};color:${rankColor}">${i+1}</div>
               <div class="oldest-info">
                 <div class="oldest-id-row">
-                  <a href="https://cookunity.zendesk.com/agent/tickets/${t.id}" target="_blank" class="oldest-id">#${t.id}</a>
+                  <a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank" class="oldest-id">#${t.id}</a>
                   <span class="oldest-subject">${t.subject}</span>
                 </div>
                 <div class="oldest-meta">
@@ -2330,17 +2332,13 @@ function renderTicketsView() {
       ${kpiCard('Resolved · 7d','8','Last 7 days','var(--c-teal)','var(--c-teal-soft)',{ mom:+2, inverted:true })}
     </div>
     <div class="toolbar">
-      <div class="search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input class="search-input" placeholder="Search ID, subject, requester…"></div>
-      <select class="select-sm"><option>All Statuses</option><option selected>On-Hold</option></select>
-      <select class="select-sm"><option>All Groups</option></select>
-      <select class="select-sm"><option>All Aging</option></select>
+      <div class="search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input class="search-input" placeholder="Search ID, subject, requester…" value="${lrEsc(AH.q)}" oninput="AH.q=this.value;renderTicketRows();updateFilterStatus()"></div>
       <button class="btn btn-ghost btn-sm" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
     </div>
     <div class="bulk-bar" id="bulk-bar" style="display:none">
       <span class="bulk-bar-count" id="bulk-count">0 selected</span>
       <div class="bulk-bar-actions">
         <button class="btn btn-ghost btn-sm" onclick="bulkFollowUp()">Log Follow-up</button>
-        <button class="btn btn-ghost btn-sm" onclick="bulkFlag()">Flag as Incorrect</button>
         <button class="btn btn-ghost btn-sm" onclick="bulkExport()">Export</button>
         <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Clear</button>
       </div>
@@ -2375,7 +2373,7 @@ function renderTicketsView() {
 function renderTicketRows() {
   const body = document.getElementById('ticket-body');
   if (!body) return;
-  const sorted = applySort(TICKETS, 'tickets', {
+  const sorted = applySort(filteredTickets(), 'tickets', {
     id:         t => t.id,
     subject:    t => t.subject,
     assignee:   t => t.assignee,
@@ -2395,7 +2393,7 @@ function ticketRow(t) {
   const isBreach = t.slaState === 'over' && t.status === 'On-Hold';
   return `<tr class="${isBreach?'sla-breach':''} ${isSel?'selected':''}">
     <td class="checkbox-col"><span class="cb ${isSel?'checked':''}" onclick="toggleRow('${t.id}', event)"></span></td>
-    <td><span class="tid"><a href="https://cookunity.zendesk.com/agent/tickets/${t.id}" target="_blank">#${t.id}</a></span></td>
+    <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span></td>
     <td><span class="subj-main">${t.subject}</span><span class="subj-sub">${t.requester}${t.flaggedIncorrect?' · <span class="flag-badge">⚠ Flagged</span>':''}</span></td>
     <td style="font-size:12.5px;color:var(--text-2);white-space:nowrap">${t.assignee}</td>
     <td><span class="badge badge-group">${t.group}</span></td>
@@ -2405,10 +2403,7 @@ function ticketRow(t) {
     <td><span class="badge ${isBreach?'badge-sla':'badge-onhold'}">${isBreach ? 'SLA Breach' : '⏸ On-Hold'}</span></td>
     <td>
       <div class="row-acts">
-        <button class="flag-quick-btn" onclick="quickFlag('${t.id}'); event.stopPropagation()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-          Flag
-        </button>
+
         <button class="row-act-btn" onclick="quickFollowUp('${t.id}'); event.stopPropagation()" title="Log follow-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>
       </div>
     </td>
@@ -2633,7 +2628,7 @@ function renderClosedView() {
           ${sortHeader('closed','closedAt','Closed At')}
         </tr></thead>
         <tbody>
-          ${applySort(CLOSED, 'closed', {
+          ${applySort(filteredClosed(), 'closed', {
             id:          c => c.id,
             subject:     c => c.subject,
             assignee:    c => c.assignee,
@@ -2643,7 +2638,7 @@ function renderClosedView() {
             finalBucket: c => c.finalBucket,
             closedAt:    c => c.closedAt,
           }).map(c => `<tr>
-            <td><span class="tid"><a href="https://cookunity.zendesk.com/agent/tickets/${c.id}" target="_blank">#${c.id}</a></span></td>
+            <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${c.id}" target="_blank">#${c.id}</a></span></td>
             <td><span class="subj-main">${c.subject}</span></td>
             <td style="font-size:12.5px;color:var(--text-2)">${c.assignee}</td>
             <td><span class="badge badge-group">${c.group}</span></td>
@@ -2654,7 +2649,7 @@ function renderClosedView() {
           </tr>`).join('')}
         </tbody>
       </table>
-      <div class="tfoot"><span><strong>${CLOSED.length}</strong> tickets shown · Avg ${(CLOSED.reduce((s,c)=>s+c.daysOpen,0)/CLOSED.length).toFixed(1)} days open</span></div>
+      <div class="tfoot"><span><strong>${filteredClosed().length}</strong> tickets shown · Avg ${filteredClosed().length ? (filteredClosed().reduce((s,c)=>s+c.daysOpen,0)/filteredClosed().length).toFixed(1) : '0'} days open</span></div>
     </div>
   `;
 }
@@ -2708,13 +2703,13 @@ function renderIncorrectView() {
             const sup = team ? team.supervisor : '—';
             return `<tr>
               <td>
-                <span class="tid"><a href="https://cookunity.zendesk.com/agent/tickets/${t.id}" target="_blank">#${t.id}</a></span>
+                <span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span>
                 <div class="subj-sub" style="margin-top:2px">${t.subject}</div>
               </td>
               <td style="font-size:12.5px">${t.assignee}</td>
               <td style="font-size:12.5px;color:var(--text-2)">${sup}</td>
-              <td style="font-size:12px;color:var(--text-2);max-width:200px">${t.flagReason || 'Not specified'}</td>
-              <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-3)">${t.flaggedAt || 'Jun 1 · 12:30'}</td>
+              <td style="font-size:12px;color:var(--text-2);max-width:280px;white-space:normal"><strong>${t.flagReason || 'Not specified'}</strong>${t.flagNotes ? `<div class="flag-note">📝 ${lrEsc(t.flagNotes)}</div>` : ''}${t.flaggedBy ? `<div class="subj-sub">by ${lrEsc(t.flaggedBy)}</div>` : ''}</td>
+              <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-3)">${t.flaggedAt || '—'}</td>
               <td><span class="flag-badge">⚠ Pending Feedback</span></td>
               <td><button class="btn btn-primary btn-sm" onclick="openFeedbackModal('${t.id}')">Write Feedback</button></td>
             </tr>`;
@@ -2747,7 +2742,7 @@ function renderIncorrectView() {
           }).map(t => {
             const team = TEAMS.find(team => team.agents.some(a => a.name === t.assignee));
             return `<tr>
-              <td><span class="tid">#${t.id}</span><div class="subj-sub" style="margin-top:2px">${t.subject}</div></td>
+              <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span><div class="subj-sub" style="margin-top:2px">${t.subject}</div></td>
               <td style="font-size:12.5px">${t.assignee}</td>
               <td style="font-size:12.5px;color:var(--text-2)">${team?team.supervisor:'—'}</td>
               <td style="font-size:12px;color:var(--text-2);max-width:280px;white-space:normal">${t.feedbackText || ''}</td>
@@ -2812,8 +2807,12 @@ function openFeedbackModal(ticketId) {
         <div><span style="color:var(--text-3)">Specialist:</span> <strong>${t.assignee}</strong></div>
         <div><span style="color:var(--text-3)">Supervisor:</span> <strong>${sup}</strong></div>
         <div><span style="color:var(--text-3)">Flag reason:</span> ${t.flagReason || 'Not specified'}</div>
-        <div><span style="color:var(--text-3)">Flagged:</span> ${t.flaggedAt || 'Jun 1 · 12:30'}</div>
+        <div><span style="color:var(--text-3)">Flagged:</span> ${t.flaggedAt || '—'}${t.flaggedBy ? ' by ' + lrEsc(t.flaggedBy) : ''}</div>
       </div>
+    </div>
+    <div class="flag-note-box">
+      <div class="flag-note-box-lbl">📝 Notes from the lead who flagged it</div>
+      <div>${t.flagNotes ? lrEsc(t.flagNotes) : '<span style="color:var(--text-mute)">No notes were added.</span>'}</div>
     </div>
 
     <div class="form-field full" style="margin-bottom:14px">
@@ -2973,7 +2972,7 @@ function renderLeadsTable() {
               const bucketIdx = ['0-7 days','8-14 days','15-21 days','21+ days'].indexOf(t.bucket);
               const dayColor = ['var(--c-green)','var(--c-amber)','var(--c-orange)','var(--c-red)'][Math.max(0,bucketIdx)];
               return `<tr>
-                <td><span class="tid"><a href="https://cookunity.zendesk.com/agent/tickets/${t.id}" target="_blank">#${t.id}</a></span></td>
+                <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span></td>
                 <td><span class="subj-main">${t.subject}</span><span class="subj-sub">${t.requester}</span></td>
                 <td style="font-size:12.5px;color:var(--text-2)">${t.assignee}</td>
                 <td><span class="badge badge-group">${t.group}</span></td>
@@ -2981,13 +2980,13 @@ function renderLeadsTable() {
                 <td><span class="sla-chip sla-${t.slaState}">${t.slaDue}</span></td>
                 <td>${
                   action
-                    ? action.type === 'close'    ? '<span class="review-status-chip rs-closed">✓ Closed</span>'
+                    ? (action.type === 'close'    ? '<span class="review-status-chip rs-closed">✓ Closed</span>'
                     : action.type === 'followup' ? '<span class="review-status-chip rs-followup">↻ Follow-up</span>'
                     : action.type === 'hold'     ? '<span class="review-status-chip rs-hold">⏸ Keep On-Hold</span>'
-                    : ''
-                    : '<span class="review-status-chip rs-pending">Pending</span>'
-                }</td>
-                <td><button class="btn btn-ghost btn-sm" onclick="reviewTicket('${t.id}')">${action?'Edit':'Review'}</button></td>
+                    : '') + reviewedByLine(action)
+                    : '<span class="review-status-chip rs-pending">Pending</span>' + lastReviewLine(t)
+                }${t.flaggedIncorrect ? '<div style="margin-top:3px"><span class="flag-badge">⚠ Flagged</span></div>' : ''}</td>
+                <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="reviewTicket('${t.id}')">${action?'Edit':'Review'}</button> ${flagButton(t)}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -3057,7 +3056,7 @@ function renderReviewMode() {
       </div>
 
       <div class="review-body">
-        <div class="review-ticket-id"><a href="https://cookunity.zendesk.com/agent/tickets/${t.id}" target="_blank">#${t.id} ↗</a></div>
+        <div class="review-ticket-id" style="display:flex;align-items:center;gap:10px"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id} ↗</a> ${flagButton(t)}</div>
         <div class="review-subject">${t.subject}</div>
 
         <div class="review-meta-grid">
@@ -3347,7 +3346,7 @@ function renderSolvedView() {
             const sourceCls = s.source === 'lead-closed' ? 'source-lead' : s.source === 'auto-solved' ? 'source-auto' : 'source-reopened';
             const sourceLabel = s.source === 'lead-closed' ? '✓ Lead Closed' : s.source === 'auto-solved' ? '⚙ Auto-Solved' : '↻ Reopened';
             return `<tr>
-              <td><span class="tid"><a href="https://cookunity.zendesk.com/agent/tickets/${s.id}" target="_blank">#${s.id}</a></span></td>
+              <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${s.id}" target="_blank">#${s.id}</a></span></td>
               <td><span class="subj-main">${s.subject}</span><span class="subj-sub">Original: ${s.originalAssignee}</span></td>
               <td><span class="source-badge ${sourceCls}">${sourceLabel}</span></td>
               <td>${s.lead ? `
@@ -5100,7 +5099,7 @@ function lrTime(v) { if (!v) return '—'; const d = new Date(v); return isNaN(d
 function lrDT(v) { return v ? lrDate(v) + ' · ' + lrTime(v) : '—'; }
 function lrIsToday(v) { return !!v && new Date(v).toDateString() === new Date().toDateString(); }
 function lrSameDay(a, b) { return !!a && !!b && new Date(a).toDateString() === new Date(b).toDateString(); }
-function zdLink(id) { return `<a class="lr-link" href="https://cookunity.zendesk.com/agent/tickets/${encodeURIComponent(id)}" target="_blank">#${lrEsc(id)}</a>`; }
+function zdLink(id) { return `<a class="lr-link" href="${ZENDESK_TICKET_URL}${encodeURIComponent(id)}" target="_blank">#${lrEsc(id)}</a>`; }
 function logLink(id) { return id ? `<a class="lr-link" onclick="closeModal('lr-history-modal');openLog('${lrEsc(id)}')">${lrEsc(id)}</a>` : '<span class="lr-muted">—</span>'; }
 function entryChip(s) {
   if (s === 'New') return '<span class="lr-chip lr-new">🆕 New</span>';
@@ -5153,7 +5152,7 @@ async function renderLogsView(force) {
   const rows = applySort(logs, 'logs', {
     logId: l => l.logId, uploadedAt: l => new Date(l.uploadedAt).getTime(),
     time: l => { const d = new Date(l.uploadedAt); return d.getHours() * 60 + d.getMinutes(); },
-    owner: l => l.uploadedByName, total: l => l.total, newCount: l => l.newCount,
+    owner: l => l.uploadedByName, total: l => l.total, reviewedCount: l => l.reviewedCount || 0, newCount: l => l.newCount,
     removedCount: l => l.removedCount, reappearedCount: l => l.reappearedCount,
   });
 
@@ -5176,19 +5175,21 @@ async function renderLogsView(force) {
         ${sortHeader('logs', 'time', 'Upload Time')}
         ${sortHeader('logs', 'owner', 'Log Owner')}
         ${sortHeader('logs', 'total', 'Tickets')}
+        ${sortHeader('logs', 'reviewedCount', 'Already Reviewed')}
         ${sortHeader('logs', 'newCount', 'New')}
         ${sortHeader('logs', 'removedCount', 'Removed')}
         ${sortHeader('logs', 'reappearedCount', 'Reappeared')}
         <th></th>
       </tr></thead>
       <tbody>
-        ${rows.length === 0 ? `<tr><td colspan="9"><div class="lr-empty">No logs yet. Upload a Zendesk CSV to create the first one.</div></td></tr>` :
+        ${rows.length === 0 ? `<tr><td colspan="10"><div class="lr-empty">No logs yet. Upload a Zendesk CSV to create the first one.</div></td></tr>` :
         rows.map(l => `<tr style="cursor:pointer" onclick="openLog('${lrEsc(l.logId)}')">
           <td><span class="lr-link">${lrEsc(l.logId)}</span>${lrIsToday(l.uploadedAt) ? ` <span class="lr-chip lr-today">Today #${l.sameDayIndex}</span>` : ''}</td>
           <td>${lrDate(l.uploadedAt)}</td>
           <td style="font-family:var(--font-mono);font-size:12.5px">${lrTime(l.uploadedAt)}</td>
           <td><div style="font-size:13px;font-weight:500">${lrEsc(l.uploadedByName)}</div><div class="lr-muted" style="font-size:11px">${lrEsc(l.uploadedBy)}</div></td>
           <td style="font-weight:600">${l.total}</td>
+          <td>${reviewedCell(l)}</td>
           <td>${l.newCount ? `<span class="lr-chip lr-new">+${l.newCount}</span>` : '<span class="lr-muted">0</span>'}</td>
           <td>${l.removedCount ? `<span class="lr-chip lr-removed">−${l.removedCount}</span>` : '<span class="lr-muted">0</span>'}${l.pendingOutcomes ? ` <span class="lr-chip lr-pending" title="Outcome not yet recorded">${l.pendingOutcomes} pending</span>` : ''}</td>
           <td>${l.reappearedCount ? `<span class="lr-chip lr-reappeared">🔁 ${l.reappearedCount}</span>` : '<span class="lr-muted">0</span>'}</td>
@@ -5218,13 +5219,13 @@ async function renderLogDetailView(force) {
     markNav('logs');
   }
   const { log, prevLog, entries, removals, legacy } = logDetailCache[id];
-  const counts = { all: entries.length, New: 0, Carried: 0, Reappeared: 0 };
+  const counts = { all: entries.length, New: 0, Carried: 0, Reappeared: 0, unreviewed: entries.filter(e => !e.reviewedAt).length };
   entries.forEach(e => { counts[e.entryStatus] = (counts[e.entryStatus] || 0) + 1; });
-  const filtered = logDetailFilter === 'all' ? entries : entries.filter(e => e.entryStatus === logDetailFilter);
+  const filtered = logDetailFilter === 'all' ? entries : logDetailFilter === 'unreviewed' ? entries.filter(e => !e.reviewedAt) : entries.filter(e => e.entryStatus === logDetailFilter);
   const rows = applySort(filtered, 'logEntries', {
     ticketId: e => e.ticketId, subject: e => e.subject, status: e => e.entryStatus,
     firstSeenAt: e => new Date(e.firstSeenAt || 0).getTime(), previousSeenAt: e => new Date(e.previousSeenAt || 0).getTime(),
-    removedBefore: e => e.removedBefore ? 1 : 0, reappeared: e => e.reappeared ? 1 : 0, notes: e => e.notes,
+    removedBefore: e => e.removedBefore ? 1 : 0, reappeared: e => e.reappeared ? 1 : 0, notes: e => e.notes, reviewedAt: e => e.reviewedAt ? new Date(e.reviewedAt).getTime() : 0,
   });
   const cmp = prevLog
     ? `${logLink(prevLog.logId)}<div class="lr-meta-sub">${lrDT(prevLog.uploadedAt)} · ${lrEsc(prevLog.uploadedByName)} · ${lrSameDay(prevLog.uploadedAt, log.uploadedAt) ? 'same day' : 'earlier day'}</div>`
@@ -5249,7 +5250,7 @@ async function renderLogDetailView(force) {
     ${legacy ? `<div class="callout callout-warning" style="margin-bottom:14px"><div class="callout-icon">🕰️</div><div class="callout-body">This log was uploaded before per-ticket log tracking was enabled, so only its totals are available.</div></div>` : ''}
 
     <div class="lr-section-title">🎫 Tickets in this upload</div>
-    <div class="lr-tabs">${tab('all', 'All')}${tab('New', '🆕 New')}${tab('Carried', '↪ Carried')}${tab('Reappeared', '🔁 Reappeared')}</div>
+    <div class="lr-tabs">${tab('all', 'All')}${tab('New', '🆕 New')}${tab('Carried', '↪ Carried')}${tab('Reappeared', '🔁 Reappeared')}${tab('unreviewed', '👀 Not reviewed yet')}</div>
     <div class="table-wrap"><div class="table-scroll"><table>
       <thead><tr>
         ${sortHeader('logEntries', 'ticketId', 'Ticket')}
@@ -5259,12 +5260,13 @@ async function renderLogDetailView(force) {
         ${sortHeader('logEntries', 'previousSeenAt', 'Previous Appearance')}
         ${sortHeader('logEntries', 'removedBefore', 'Removed Before')}
         ${sortHeader('logEntries', 'reappeared', 'Reappeared')}
+        ${sortHeader('logEntries', 'reviewedAt', 'Already Reviewed')}
         <th>Log Owner</th>
         ${sortHeader('logEntries', 'notes', 'Reconciliation Notes')}
         <th></th>
       </tr></thead>
       <tbody>
-        ${rows.length === 0 ? `<tr><td colspan="10"><div class="lr-empty">${legacy ? 'No per-ticket detail for this log.' : 'No tickets match this filter.'}</div></td></tr>` :
+        ${rows.length === 0 ? `<tr><td colspan="11"><div class="lr-empty">${legacy ? 'No per-ticket detail for this log.' : 'No tickets match this filter.'}</div></td></tr>` :
         rows.map(e => `<tr class="${e.entryStatus === 'Reappeared' ? 'lr-row-reappeared' : ''}">
           <td>${zdLink(e.ticketId)}</td>
           <td><span class="subj-main">${lrEsc(e.subject)}</span><span class="subj-sub">${lrEsc(e.assignee)}${e.group ? ' · ' + lrEsc(e.group) : ''}</span></td>
@@ -5273,6 +5275,7 @@ async function renderLogDetailView(force) {
           <td style="font-size:12.5px">${e.previousSeenAt ? lrDT(e.previousSeenAt) : '<span class="lr-muted">—</span>'}</td>
           <td>${yesNo(e.removedBefore, '<span class="lr-chip lr-removed">Yes</span>')}</td>
           <td>${yesNo(e.reappeared, '<span class="lr-chip lr-reappeared">🔁 Yes</span>')}</td>
+          <td>${reviewedEntryCell(e)}</td>
           <td style="font-size:12.5px">${lrEsc(log.uploadedByName)}</td>
           <td style="font-size:12px;color:var(--text-2);max-width:260px;white-space:normal">${lrEsc(e.notes)}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="showTicketHistory('${lrEsc(e.ticketId)}')">History</button></td>
@@ -6206,8 +6209,13 @@ function applyLiveData(d) {
     refill(ANALYTICS_BY_REASON, []);
   }
 
-  // Calculated panels & KPIs
-  const act = TICKETS;
+  buildCalc(TICKETS);
+  updateSidebarCounts();
+}
+
+// KPIs & panels for a set of tickets (all, or the filtered ones)
+function buildCalc(act) {
+  const SLA = slaDays(), nowMs = Date.now(), weekAgo = nowMs - 7 * 864e5, logs = LIVE_DATA.logs;
   const flaggedPending = act.filter(t => t.flaggedIncorrect && !t.feedbackDelivered);
   const oldest = act.slice().sort((a, b) => b.days - a.days)[0];
   const avg = xs => xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
@@ -6257,7 +6265,6 @@ function applyLiveData(d) {
       'Avg Time to Feedback': [fbTimes.length ? (Math.round(avg(fbTimes) * 10) / 10) + 'd' : '—', 'From flag to delivery'],
     },
   };
-  updateSidebarCounts();
 }
 
 // On the live site, KPI cards use calculated values and never show example trends
@@ -6679,6 +6686,228 @@ if (VIEWS.admin) {
 // Esc also exits the preview when no pop-up is open
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && viewAsRole && !topOpenModal()) exitViewAs(); }, true);  // capture: runs before the pop-up closer
 applyRoleNav();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v6.2 — Working filters (Apply) · Flag + notes in Lead Monitoring ·           -->
+<!--        "Already reviewed" tracking (a review covers a ticket for that day)   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+.filter-status.dirty{color:var(--c-orange);font-weight:600}
+#ah-apply[disabled]{opacity:.45;cursor:default}
+.flag-note{margin-top:5px;background:#FFFBEB;border-left:3px solid #F59E0B;padding:5px 9px;border-radius:5px;font-size:12px;color:var(--text-2);font-weight:400}
+.flag-note-box{background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px;line-height:1.55;white-space:pre-wrap}
+.flag-note-box-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#92400E;margin-bottom:4px;white-space:normal}
+.rv-cell{font-size:12px;line-height:1.4}
+</style>
+<script>
+// ═══ 1. FILTERS — choose, then "Apply filters" ═══════════════════════════════
+function curMonth() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function ahDefaults() { return { month: curMonth(), supervisor: '', group: '', holdReason: '', aging: '', age: '' }; }
+const AH = { applied: ahDefaults(), draft: ahDefaults(), q: '' };
+
+function activeFilterCount() {
+  const d = ahDefaults();
+  return Object.keys(d).filter(k => AH.applied[k] !== d[k]).length + (AH.q.trim() ? 1 : 0);
+}
+function filteredTickets() {
+  const f = AH.applied, q = AH.q.toLowerCase().trim();
+  const [y, m] = (f.month || curMonth()).split('-').map(Number);
+  const monthEnd = new Date(y, m, 1).getTime();   // start of the following month
+  return TICKETS.filter(t => {
+    if (t.onHoldSince && new Date(t.onHoldSince).getTime() >= monthEnd) return false;   // wasn't on hold yet that month
+    if (f.supervisor) {
+      const tm = TEAMS.find(x => x.supervisor === f.supervisor);
+      if (!tm || !tm.agents.some(a => String(a.name).toLowerCase() === String(t.assignee).toLowerCase())) return false;
+    }
+    if (f.group && t.group !== f.group) return false;
+    if (f.holdReason && (f.holdReason === '__none' ? !!t.holdReason : t.holdReason !== f.holdReason)) return false;
+    if (f.aging && t.bucket !== f.aging) return false;
+    if (f.age && t.slaState !== f.age) return false;
+    if (q && ![t.id, t.subject, t.requester, t.assignee].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+// Closed tickets: Month = closed during that month
+function filteredClosed() {
+  const f = AH.applied;
+  return CLOSED.filter(c => {
+    if (LIVE && f.month && c.closedAtIso) { const d = new Date(c.closedAtIso); const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); if (k !== f.month) return false; }
+    if (f.supervisor) { const tm = TEAMS.find(x => x.supervisor === f.supervisor); if (!tm || !tm.agents.some(a => String(a.name).toLowerCase() === String(c.assignee).toLowerCase())) return false; }
+    if (f.group && c.group !== f.group) return false;
+    if (f.aging && c.finalBucket !== f.aging) return false;
+    return true;
+  });
+}
+function filterStatusText() {
+  if (currentView === 'closed') { const n = activeFilterCount(); return (n ? n + ' filter' + (n > 1 ? 's' : '') + ' active — ' : '') + filteredClosed().length + ' of ' + CLOSED.length + ' closed tickets'; }
+  const n = activeFilterCount(), shown = filteredTickets().length;
+  return n ? `${n} filter${n > 1 ? 's' : ''} active — ${shown} of ${TICKETS.length} tickets` : `No filters — ${TICKETS.length} tickets`;
+}
+function updateFilterStatus() {
+  const el = document.getElementById('ah-status');
+  if (!el) return;
+  const dirty = JSON.stringify(AH.draft) !== JSON.stringify(AH.applied);
+  el.classList.toggle('dirty', dirty);
+  el.textContent = dirty ? 'Changes not applied yet — click Apply filters' : filterStatusText();
+  const b = document.getElementById('ah-apply'); if (b) b.disabled = !dirty;
+}
+function setDraft(field, value) { AH.draft[field] = value; updateFilterStatus(); }
+function applyFilters() { AH.applied = Object.assign({}, AH.draft); if (VIEWS[currentView]) VIEWS[currentView].render(); toast('✓ Filters applied — ' + filteredTickets().length + ' tickets', 'success'); }
+function resetFilters() { AH.applied = ahDefaults(); AH.draft = ahDefaults(); AH.q = ''; if (VIEWS[currentView]) VIEWS[currentView].render(); }
+
+filterBar = function () {
+  const d = AH.draft;
+  const opt = (v, label, cur) => `<option value="${lrEsc(v)}" ${v === cur ? 'selected' : ''}>${lrEsc(label)}</option>`;
+  const sel = (field, all, opts) => `<select class="filter-select" onchange="setDraft('${field}', this.value)">${opt('', all, d[field])}${opts}</select>`;
+  const groups = [...new Set(TICKETS.map(t => t.group).filter(Boolean))].sort();
+  const reasons = [...new Set([...HOLD_REASONS, ...TICKETS.map(t => t.holdReason).filter(Boolean)])];
+  const sups = TEAMS.map(t => t.supervisor).filter(x => x && x !== 'Unassigned');
+  return `<div class="filter-bar" id="ah-filter-bar">
+    <div class="filter-grid">
+      <div class="filter-field"><label class="filter-label">Month</label><input type="month" class="filter-input" value="${d.month}" max="${curMonth()}" onchange="setDraft('month', this.value || curMonth())"></div>
+      <div class="filter-field"><label class="filter-label">Supervisor</label>${sel('supervisor', 'All Supervisors', sups.map(x => opt(x, x, d.supervisor)).join(''))}</div>
+      <div class="filter-field"><label class="filter-label">Group</label>${sel('group', 'All Groups', groups.map(x => opt(x, x, d.group)).join(''))}</div>
+      <div class="filter-field"><label class="filter-label">Hold Reason</label>${sel('holdReason', 'All Reasons', reasons.map(x => opt(x, x, d.holdReason)).join('') + opt('__none', 'Not set', d.holdReason))}</div>
+      <div class="filter-field"><label class="filter-label">Aging Bucket</label>${sel('aging', 'All Aging', ['0-7 days', '8-14 days', '15-21 days', '21+ days'].map(x => opt(x, x, d.aging)).join(''))}</div>
+      <div class="filter-field"><label class="filter-label">Age Status</label>${sel('age', 'All', opt('over', 'Breached', d.age) + opt('soon', 'Due Soon', d.age) + opt('ok', 'OK', d.age))}</div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary btn-sm" id="ah-apply" onclick="applyFilters()" disabled>✓ Apply filters</button>
+      <button class="btn-reset" onclick="resetFilters()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        Reset Filters
+      </button>
+      <div class="filter-status" id="ah-status">${filterStatusText()}</div>
+    </div>
+  </div>`;
+};
+// Draft keeps what's on screen; leaving without applying discards it
+['dashboard', 'tickets', 'closed'].forEach(v => {
+  if (!VIEWS[v]) return;
+  const orig = VIEWS[v].render;
+  VIEWS[v].render = function () {
+    AH.draft = Object.assign({}, AH.applied);
+    if (LIVE) buildCalc(filteredTickets());       // KPIs & panels follow the filters
+    const r = orig.apply(this, arguments);
+    if (LIVE) buildCalc(TICKETS);
+    updateFilterStatus();
+    return r;
+  };
+});
+
+// ═══ 2. LIVE DATA extras — flag notes, on-hold since, last review ═══════════
+const _v62Apply = applyLiveData;
+applyLiveData = function (d) {
+  _v62Apply(d);
+  const src = {}; (LIVE_DATA.tickets || []).forEach(t => { src[String(t.id)] = t; });
+  const lastRev = {};
+  (LIVE_DATA.leadActions || []).forEach(a => { if (!lastRev[a.ticketId] || a.timestamp > lastRev[a.ticketId].timestamp) lastRev[a.ticketId] = a; });
+  TICKETS.forEach(t => {
+    const s = src[t.id] || {};
+    t.flagNotes = s.flagNotes || '';
+    t.flaggedBy = s.flaggedByName || s.flaggedBy || '';
+    const dates = [s.requestedAt, s.firstSeenAt].filter(Boolean).map(x => new Date(x).getTime()).filter(x => !isNaN(x));
+    t.onHoldSince = dates.length ? new Date(Math.min(...dates)).toISOString() : '';
+    const r = lastRev[t.id];
+    t.lastReviewAt = r ? r.timestamp : ''; t.lastReviewBy = r ? r.leadName : '';
+  });
+  // A review covers a ticket for the day it was done — tomorrow it's due again
+  const today = new Date().toDateString();
+  Object.keys(LEAD_ACTIONS).forEach(id => { const a = LEAD_ACTIONS[id]; if (!a.timestamp || new Date(a.timestamp).toDateString() !== today) delete LEAD_ACTIONS[id]; });
+  updateSidebarCounts();
+};
+
+// ═══ 3. REVIEWED — who reviewed and when ════════════════════════════════════
+function agoText(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (isNaN(ms)) return '';
+  const m = Math.round(ms / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+  const dd = Math.round(h / 24); return dd + (dd === 1 ? ' day ago' : ' days ago');
+}
+function reviewedByLine(a) {
+  if (!a || (!a.lead && !a.timestamp)) return '';
+  return `<div class="subj-sub" style="margin-top:3px">${a.lead ? 'by ' + lrEsc(a.lead) : ''}${a.timestamp ? ' · ' + agoText(a.timestamp) : ''}</div>`;
+}
+function lastReviewLine(t) {
+  return t.lastReviewAt ? `<div class="subj-sub" style="margin-top:3px">Last reviewed ${agoText(t.lastReviewAt)}${t.lastReviewBy ? ' by ' + lrEsc(t.lastReviewBy) : ''}</div>` : '';
+}
+function reviewedCell(l) {
+  const n = l.reviewedCount || 0, tot = l.total || 0;
+  const cls = !tot ? 'lr-carried' : n >= tot ? 'lr-solved' : n > 0 ? 'lr-pending' : 'lr-carried';
+  return `<span class="lr-chip ${cls}" title="Tickets in this log a lead reviewed on the same day">${n >= tot && tot ? '✓ ' : ''}${n} / ${tot}</span>`;
+}
+function reviewedEntryCell(e) {
+  if (!e.reviewedAt) return '<span class="lr-chip lr-pending">👀 Not yet</span>';
+  const act = { close: 'Closed', followup: 'Follow-up', hold: 'Kept on-hold' }[e.reviewAction] || 'Reviewed';
+  return `<div class="rv-cell"><span class="lr-chip lr-solved">✓ ${act}</span><div class="lr-muted" style="font-size:11px;margin-top:2px">${lrEsc(e.reviewedBy || '')} · ${lrTime(e.reviewedAt)}</div></div>`;
+}
+const _v62Save = saveAndNext;
+saveAndNext = function (ticketId) {
+  const r = _v62Save.apply(this, arguments);
+  const a = LEAD_ACTIONS[ticketId];
+  if (a) { a.timestamp = a.timestamp || new Date().toISOString(); a.lead = a.lead || currentLead; }
+  if (typeof logsCache !== 'undefined') logsCache = null;   // refresh "Already Reviewed" counts next time
+  return r;
+};
+
+// ═══ 4. FLAG INCORRECT USAGE — from Lead Monitoring, with notes ═════════════
+const FLAG_REASONS = ['Should be Pending', 'Should be Solved', 'No external dependency', 'Wrong hold reason', 'No follow-up scheduled', 'Other'];
+function flagButton(t) {
+  return t.flaggedIncorrect
+    ? `<button class="btn btn-ghost btn-sm" style="color:var(--c-amber)" onclick="event.stopPropagation();openFlagModal('${t.id}')" title="View or edit the flag">⚠ Flagged</button>`
+    : `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openFlagModal('${t.id}')" title="Flag as incorrect On-Hold usage">⚑ Flag</button>`;
+}
+function openFlagModal(id) {
+  const t = TICKETS.find(x => x.id === id);
+  if (!t) return;
+  hmModal('fl-modal', 'Flag incorrect usage', 540);
+  document.getElementById('fl-modal-title').textContent = (t.flaggedIncorrect ? 'Flag on #' : 'Flag #') + t.id + ' as incorrect usage';
+  const reason = t.flagReason && FLAG_REASONS.includes(t.flagReason) ? t.flagReason : '';
+  document.getElementById('fl-modal-body').innerHTML = `
+    <div class="v6-mode"><div style="font-weight:600;margin-bottom:2px">${lrEsc(t.subject)}</div>
+      <div class="lr-muted">${lrEsc(t.assignee)} · ${lrEsc(t.group)} · ${t.days}d on hold · <a class="lr-link" href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">Open in Zendesk ↗</a></div></div>
+    ${t.feedbackDelivered ? '<div class="callout callout-info" style="margin-bottom:12px"><div class="callout-icon">✓</div><div class="callout-body">Feedback was already delivered for this flag. Saving again sends it back to the supervisor.</div></div>' : ''}
+    <div class="hm-form">
+      <div class="full"><label>Reason <span class="hm-req">*</span></label>
+        <select id="fl-reason"><option value="">Choose a reason…</option>${FLAG_REASONS.map(r => `<option ${r === reason ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+      <div class="full"><label>Notes for the supervisor <span class="hm-req">*</span></label>
+        <textarea id="fl-notes" class="v6-input" rows="4" placeholder="What's wrong with this On-Hold and what should the specialist have done? The supervisor sees this when giving feedback.">${lrEsc(t.flagNotes || '')}</textarea></div>
+    </div>
+    <div class="hm-err" id="fl-err"></div>`;
+  document.getElementById('fl-modal-ftr').innerHTML = `
+    ${t.flaggedIncorrect && can('deliverFeedback') ? `<button class="btn btn-ghost" style="margin-right:auto;color:var(--c-red)" onclick="removeFlag('${t.id}')">Remove flag</button>` : ''}
+    <button class="btn btn-ghost" onclick="closeModal('fl-modal')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveFlag('${t.id}')">${t.flaggedIncorrect ? 'Update flag' : '⚑ Flag ticket'}</button>`;
+  openModal('fl-modal');
+}
+function saveFlag(id) {
+  const t = TICKETS.find(x => x.id === id);
+  const reason = document.getElementById('fl-reason').value;
+  const notes = document.getElementById('fl-notes').value.trim();
+  const err = document.getElementById('fl-err');
+  if (!reason) { err.textContent = 'Choose a reason.'; return; }
+  if (!notes) { err.textContent = 'Add notes so the supervisor knows what to coach.'; return; }
+  const nowIso = new Date().toISOString();
+  Object.assign(t, { flaggedIncorrect: true, flagReason: reason, flagNotes: notes, flaggedBy: currentUser.name,
+    flaggedAt: fmtShort(nowIso), flaggedAtIso: nowIso, feedbackDelivered: false, feedbackText: '' });
+  persist('api_flagIncorrect', [id, reason, notes], 'This flag');
+  closeModal('fl-modal');
+  if (!viewAsRole) toast('⚑ #' + id + ' flagged — sent to Incorrect Usage for the supervisor', 'success');
+  updateSidebarCounts();
+  if (VIEWS[currentView]) VIEWS[currentView].render();
+}
+function removeFlag(id) {
+  if (!confirm('Remove the flag on #' + id + '?')) return;
+  const t = TICKETS.find(x => x.id === id);
+  Object.assign(t, { flaggedIncorrect: false, flagReason: '', flagNotes: '', flaggedBy: '', flaggedAt: '' });
+  persist('api_unflagIncorrect', [id], 'Removing the flag');
+  closeModal('fl-modal');
+  updateSidebarCounts();
+  if (VIEWS[currentView]) VIEWS[currentView].render();
+}
 </script>
 
 </div> <!-- end #app-shell -->
