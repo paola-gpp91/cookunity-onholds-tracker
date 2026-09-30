@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.8.1</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.8.2</div>
   </div>
 </div>
 
@@ -7885,6 +7885,7 @@ window.fetch = function (url, opts) {
   let body = {};
   try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
   const method = body.method || '';
+  if (!method) return _ldFetch(url, opts);   // not a tracker request (e.g. opening the backend page)
   const isRead = /^api_get/.test(method);
   // Expired sign-in: stop here with a clear message instead of a failed request
   const exp = tokenExp(body.idToken);
@@ -8045,7 +8046,7 @@ if (VIEWS.admin) {
 <script>
 // ⚠️ CONFIGURE THESE TWO BEFORE DEPLOYING
 const GOOGLE_CLIENT_ID = '311124993732-sv5crdiag2ghr2f5u9geupi1b29uqe06.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbyhGpZKRBOI7v1m05WAo9HC2b2oDiKkuZo6H7Vx0EPtYRl1-J0DAjCEs4mXsTqKbiui/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbx6NF2sHByMu186hRLj5x47c8H0jCVGKqXm3-nYMuaTVNwV4qeDXmhgzkvQA421yCYp/exec';
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Sign-in state — stored in memory + sessionStorage so refresh keeps you signed in
