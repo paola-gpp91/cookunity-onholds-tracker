@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.6</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.7</div>
   </div>
 </div>
 
@@ -2695,11 +2695,11 @@ function renderIncorrectView() {
           ${pending.length === 0 ? `<tr><td colspan="7"><div style="padding:30px;text-align:center;color:var(--text-mute)"><div style="font-size:13px;font-weight:600;color:var(--text-3)">All caught up</div><div style="font-size:12px;margin-top:4px">No pending feedback entries.</div></div></td></tr>` : applySort(pending, 'incorrectPending', {
             id:         t => t.id,
             assignee:   t => t.assignee,
-            supervisor: t => { const tm = TEAMS.find(team => team.agents.some(a => a.name === t.assignee)); return tm ? tm.supervisor : ''; },
+            supervisor: t => supervisorOf(t.assignee),
             flagReason: t => t.flagReason || '',
             flaggedAt:  t => t.flaggedAt || '',
           }).map(t => {
-            const team = TEAMS.find(team => team.agents.some(a => a.name === t.assignee));
+            const team = { supervisor: supervisorOf(t.assignee) };
             const sup = team ? team.supervisor : '—';
             return `<tr>
               <td>
@@ -2736,11 +2736,11 @@ function renderIncorrectView() {
           ${applySort(delivered, 'incorrectDelivered', {
             id:                  t => t.id,
             assignee:            t => t.assignee,
-            supervisor:          t => { const tm = TEAMS.find(team => team.agents.some(a => a.name === t.assignee)); return tm ? tm.supervisor : ''; },
+            supervisor:          t => supervisorOf(t.assignee),
             feedbackText:        t => t.feedbackText || '',
             feedbackDeliveredAt: t => t.feedbackDeliveredAt || '',
           }).map(t => {
-            const team = TEAMS.find(team => team.agents.some(a => a.name === t.assignee));
+            const team = { supervisor: supervisorOf(t.assignee) };
             return `<tr>
               <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span><div class="subj-sub" style="margin-top:2px">${t.subject}</div></td>
               <td style="font-size:12.5px">${t.assignee}</td>
@@ -2795,7 +2795,7 @@ function openFeedbackModal(ticketId) {
   activeFeedbackTicketId = ticketId;
   const t = TICKETS.find(x => x.id === ticketId);
   if (!t) return;
-  const team = TEAMS.find(team => team.agents.some(a => a.name === t.assignee));
+  const team = { supervisor: supervisorOf(t.assignee) };
   const sup = team ? team.supervisor : '—';
 
   document.getElementById('feedback-modal-title').textContent = `Feedback for #${t.id}`;
@@ -6704,7 +6704,7 @@ applyRoleNav();
 <script>
 // ═══ 1. FILTERS — choose, then "Apply filters" ═══════════════════════════════
 function curMonth() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
-function ahDefaults() { return { month: curMonth(), supervisor: '', group: '', holdReason: '', aging: '', age: '' }; }
+function ahDefaults() { return { month: curMonth(), supervisor: '', assignee: '', group: '', holdReason: '', aging: '', age: '' }; }
 const AH = { applied: ahDefaults(), draft: ahDefaults(), q: '' };
 
 function activeFilterCount() {
@@ -6717,10 +6717,8 @@ function filteredTickets() {
   const monthEnd = new Date(y, m, 1).getTime();   // start of the following month
   return TICKETS.filter(t => {
     if (t.onHoldSince && new Date(t.onHoldSince).getTime() >= monthEnd) return false;   // wasn't on hold yet that month
-    if (f.supervisor) {
-      const tm = TEAMS.find(x => x.supervisor === f.supervisor);
-      if (!tm || !tm.agents.some(a => String(a.name).toLowerCase() === String(t.assignee).toLowerCase())) return false;
-    }
+    if (f.supervisor && supervisorOf(t.assignee) !== f.supervisor) return false;
+    if (f.assignee && assigneeName(t.assignee) !== f.assignee) return false;
     if (f.group && t.group !== f.group) return false;
     if (f.holdReason && (f.holdReason === '__none' ? !!t.holdReason : t.holdReason !== f.holdReason)) return false;
     if (f.aging && t.bucket !== f.aging) return false;
@@ -6734,7 +6732,8 @@ function filteredClosed() {
   const f = AH.applied;
   return CLOSED.filter(c => {
     if (LIVE && f.month && c.closedAtIso) { const d = new Date(c.closedAtIso); const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); if (k !== f.month) return false; }
-    if (f.supervisor) { const tm = TEAMS.find(x => x.supervisor === f.supervisor); if (!tm || !tm.agents.some(a => String(a.name).toLowerCase() === String(c.assignee).toLowerCase())) return false; }
+    if (f.supervisor && supervisorOf(c.assignee) !== f.supervisor) return false;
+    if (f.assignee && assigneeName(c.assignee) !== f.assignee) return false;
     if (f.group && c.group !== f.group) return false;
     if (f.aging && c.finalBucket !== f.aging) return false;
     return true;
@@ -6763,11 +6762,13 @@ filterBar = function () {
   const sel = (field, all, opts) => `<select class="filter-select" onchange="setDraft('${field}', this.value)">${opt('', all, d[field])}${opts}</select>`;
   const groups = [...new Set(TICKETS.map(t => t.group).filter(Boolean))].sort();
   const reasons = [...new Set([...HOLD_REASONS, ...TICKETS.map(t => t.holdReason).filter(Boolean)])];
-  const sups = TEAMS.map(t => t.supervisor).filter(x => x && x !== 'Unassigned');
+  const sups = TEAMS.map(t => t.supervisor).filter(Boolean);
+  const assignees = [...new Set(TICKETS.map(t => assigneeName(t.assignee)))].sort((a, b) => a.localeCompare(b));
   return `<div class="filter-bar" id="ah-filter-bar">
     <div class="filter-grid">
       <div class="filter-field"><label class="filter-label">Month</label><input type="month" class="filter-input" value="${d.month}" max="${curMonth()}" onchange="setDraft('month', this.value || curMonth())"></div>
       <div class="filter-field"><label class="filter-label">Supervisor</label>${sel('supervisor', 'All Supervisors', sups.map(x => opt(x, x, d.supervisor)).join(''))}</div>
+      <div class="filter-field"><label class="filter-label">Assignee</label>${sel('assignee', 'All Assignees', assignees.map(x => opt(x, x, d.assignee)).join(''))}</div>
       <div class="filter-field"><label class="filter-label">Group</label>${sel('group', 'All Groups', groups.map(x => opt(x, x, d.group)).join(''))}</div>
       <div class="filter-field"><label class="filter-label">Hold Reason</label>${sel('holdReason', 'All Reasons', reasons.map(x => opt(x, x, d.holdReason)).join('') + opt('__none', 'Not set', d.holdReason))}</div>
       <div class="filter-field"><label class="filter-label">Aging Bucket</label>${sel('aging', 'All Aging', ['0-7 days', '8-14 days', '15-21 days', '21+ days'].map(x => opt(x, x, d.aging)).join(''))}</div>
@@ -7103,7 +7104,8 @@ function openAgentTickets(name) { AH.q = name; setView('tickets'); }
 function renderTeamViewV2() {
   const SLA = typeof slaDays === 'function' ? slaDays() : 14;
   const q = teamSearch.toLowerCase().trim();
-  const teams = [...TEAMS].sort((a, b) => (a.supervisor === 'Unassigned') - (b.supervisor === 'Unassigned') || b.onHold - a.onHold || a.supervisor.localeCompare(b.supervisor));
+  const tvOrder = t => t.supervisor === (typeof NOT_IN_HIER !== 'undefined' ? NOT_IN_HIER : '') ? 2 : t.supervisor === 'Unassigned' ? 1 : 0;
+  const teams = [...TEAMS].sort((a, b) => tvOrder(a) - tvOrder(b) || b.onHold - a.onHold || a.supervisor.localeCompare(b.supervisor));
   const shown = teams.map(t => {
     if (!q) return t;
     const supHit = t.supervisor.toLowerCase().includes(q);
@@ -7115,13 +7117,14 @@ function renderTeamViewV2() {
   const maxLoad = Math.max(1, ...TEAMS.map(t => t.onHold));
 
   const card = t => {
-    const [c1, c2] = t.supervisor === 'Unassigned' ? ['#64748B', '#94A3B8'] : tvColor(t.supervisor);
+    const special = tvOrder(t) > 0;
+    const [c1, c2] = special ? ['#475569', '#94A3B8'] : tvColor(t.supervisor);
     const agents = [...t.agents].sort((a, b) => b.tickets - a.tickets || a.name.localeCompare(b.name));
     const open = !!(window._tvOpen && window._tvOpen[t.supervisor]);
     const visible = open || q ? agents : agents.slice(0, 6);
     const loadPct = Math.round(t.onHold / maxLoad * 100);
     const loadColor = t.breached ? '#EF4444' : loadPct > 66 ? '#F97316' : '#10B981';
-    return `<div class="tv-card ${t.supervisor === 'Unassigned' ? 'unassigned' : ''}">
+    return `<div class="tv-card ${special ? 'unassigned' : ''}">
       <div class="tv-hdr" style="background:linear-gradient(135deg,${c1},${c2})">
         <div class="tv-avatar">${lrEsc(t.initials)}</div>
         <div style="min-width:0;position:relative;z-index:1"><div class="tv-name">${lrEsc(t.supervisor)}</div><div class="tv-role">${lrEsc(t.role)}</div></div>
@@ -7134,12 +7137,13 @@ function renderTeamViewV2() {
           <span class="tv-pill ${t.breached ? 'red' : 'green'}">${t.breached ? '⏰ ' + t.breached + ' over SLA' : '✓ Within SLA'}</span>
           ${t.incorrect ? `<span class="tv-pill amber">⚑ ${t.incorrect} flagged</span>` : ''}
         </div>
+        ${tvOrder(t) === 2 ? `<div class="lr-muted" style="font-size:12px;line-height:1.5">These assignees have On-Hold tickets but aren't in the hierarchy, so they can't roll up to a supervisor.${can('viewAdmin') ? ' Click <strong>＋</strong> to add one.' : ''}</div>` : ''}
         <div class="tv-agents">
           ${visible.map(a => { const [ac] = tvColor(a.name); return `<div class="tv-agent" onclick="openAgentTickets('${lrEsc(a.name).replace(/'/g, "\\'")}')" title="See ${lrEsc(a.name)}'s on-hold tickets">
             <div class="tv-agent-av" style="background:${ac}">${lrEsc(a.initials)}</div>
             <div style="flex:1;min-width:0"><div class="tv-agent-name">${lrEsc(a.name)}</div>
-              <div class="tv-agent-meta">${a.breach ? `<span style="color:var(--c-red)">${a.breach} over SLA</span>` : a.tickets ? 'On track' : 'No on-hold tickets'}${a.incorrect ? ` · <span style="color:var(--c-amber)">${a.incorrect} flagged</span>` : ''}</div></div>
-            <div class="tv-count ${a.breach ? 'bad' : a.tickets ? 'has' : ''}">${a.tickets}</div></div>`; }).join('') || '<div class="lr-muted" style="padding:8px">No agents</div>'}
+              <div class="tv-agent-meta">${a.groupList ? lrEsc(a.groupList) + ' · ' : ''}${a.breach ? `<span style="color:var(--c-red)">${a.breach} over SLA</span>` : a.tickets ? 'On track' : 'No on-hold tickets'}${a.incorrect ? ` · <span style="color:var(--c-amber)">${a.incorrect} flagged</span>` : ''}</div></div>
+            <div class="tv-count ${a.breach ? 'bad' : a.tickets ? 'has' : ''}">${a.tickets}</div>${tvOrder(t) === 2 && can('viewAdmin') && a.name !== 'Unassigned' ? `<button class="btn btn-ghost btn-sm" style="padding:2px 8px" title="Add ${lrEsc(a.name)} to the hierarchy" onclick="event.stopPropagation();addToHierarchy('${lrEsc(a.name).replace(/'/g, "\\'")}')">＋</button>` : ''}</div>`; }).join('') || '<div class="lr-muted" style="padding:8px">No agents</div>'}
           ${!q && agents.length > 6 ? `<button class="tv-more" onclick="window._tvOpen=window._tvOpen||{};window._tvOpen['${lrEsc(t.supervisor).replace(/'/g, "\\'")}']=${!open};renderTeamViewV2()">${open ? 'Show less ▲' : 'Show all ' + agents.length + ' agents ▼'}</button>` : ''}
         </div>
       </div></div>`;
@@ -7149,7 +7153,7 @@ function renderTeamViewV2() {
     ${pageHeader('Team Hierarchy', 'Supervisors and their teams — busiest first. Click an agent to see their on-hold tickets.',
       can('viewAdmin') ? `<button class="btn btn-ghost btn-sm" onclick="setView('hierarchy')">🏗️ Manage hierarchy</button>` : '')}
     <div class="kpi-grid">
-      ${kpiCard('Supervisors', String(TEAMS.filter(t => t.supervisor !== 'Unassigned').length), 'Leading a team', 'var(--c-purple)', 'var(--c-purple-soft)')}
+      ${kpiCard('Supervisors', String(TEAMS.filter(t => tvOrder(t) === 0).length), 'Leading a team', 'var(--c-purple)', 'var(--c-purple-soft)')}
       ${kpiCard('Agents', String(agentsTotal), 'In the hierarchy', 'var(--c-blue)', 'var(--c-blue-soft)')}
       ${kpiCard('On-Hold', String(onHold), 'Across all teams', 'var(--c-orange)', 'var(--c-orange-soft)')}
       ${kpiCard('Over SLA', String(breached), 'On hold ' + SLA + '+ days', 'var(--c-red)', 'var(--c-red-soft)')}
@@ -7693,6 +7697,97 @@ renderGuideView = function () {
   return r;
 };
 if (VIEWS.guide) VIEWS.guide.render = function () { return renderGuideView(); };
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v6.7 — Count tickets by ASSIGNEE. Hierarchy agents roll up to their          -->
+<!--        supervisor; everyone else is grouped as "Not in hierarchy".           -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<script>
+const NOT_IN_HIER = 'Not in hierarchy';
+// "Ana Torres", "ana  torres", "Ána Torres" → "ana torres"
+function normName(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+let _agentIndex = null;   // normalized name / email handle → hierarchy agent
+function agentIndex() {
+  if (_agentIndex) return _agentIndex;
+  _agentIndex = new Map();
+  ((typeof LIVE_DATA !== 'undefined' && LIVE_DATA.hierarchy) || []).forEach(a => {
+    const n = normName(a.agentName); if (n) _agentIndex.set(n, a);
+    const handle = normName(String(a.agentEmail || '').split('@')[0]);   // ana.torres@… → "ana torres"
+    if (handle && !_agentIndex.has(handle)) _agentIndex.set(handle, a);
+  });
+  return _agentIndex;
+}
+function hierAgentFor(assignee) { const n = normName(assignee); return n ? agentIndex().get(n) || null : null; }
+function assigneeName(assignee) {
+  const a = LIVE ? hierAgentFor(assignee) : null;
+  return a ? a.agentName : (String(assignee || '').trim() || 'Unassigned');
+}
+function supervisorOf(assignee) {
+  if (!LIVE) { const tm = TEAMS.find(x => x.agents.some(a => normName(a.name) === normName(assignee))); return tm ? tm.supervisor : NOT_IN_HIER; }
+  const a = hierAgentFor(assignee);
+  return a ? (a.supervisorName || 'Unassigned') : NOT_IN_HIER;
+}
+
+// Rebuild the team counts from the tickets' assignees
+function buildTeamsByAssignee() {
+  _agentIndex = null;
+  const SLA = slaDays();
+  const teams = {};
+  const team = name => teams[name] || (teams[name] = { supervisor: name, initials: initialsOf(name), groups: new Set(), onHold: 0, breached: 0, incorrect: 0, agents: new Map() });
+  // everyone in the hierarchy appears, even with 0 tickets
+  (LIVE_DATA.hierarchy || []).forEach(a => {
+    const tm = team(a.supervisorName || 'Unassigned');
+    if (a.group) tm.groups.add(a.group);
+    tm.agents.set(normName(a.agentName), { name: a.agentName, initials: initialsOf(a.agentName), tickets: 0, breach: 0, incorrect: 0, groups: new Set() });
+  });
+  // every ticket is counted once, by its assignee
+  TICKETS.forEach(t => {
+    const a = hierAgentFor(t.assignee);
+    const supName = a ? (a.supervisorName || 'Unassigned') : NOT_IN_HIER;
+    const tm = team(supName);
+    const key = a ? normName(a.agentName) : (normName(t.assignee) || '__unassigned');
+    if (!tm.agents.has(key)) tm.agents.set(key, { name: a ? a.agentName : (t.assignee || 'Unassigned'), initials: initialsOf(a ? a.agentName : (t.assignee || '?')), tickets: 0, breach: 0, incorrect: 0, groups: new Set(), notInHier: !a });
+    const ag = tm.agents.get(key);
+    ag.tickets++; if (t.days >= SLA) ag.breach++; if (t.flaggedIncorrect && !t.feedbackDelivered) ag.incorrect++;
+    if (t.group) ag.groups.add(t.group);
+    tm.onHold++; if (t.days >= SLA) tm.breached++; if (t.flaggedIncorrect && !t.feedbackDelivered) tm.incorrect++;
+    t.supervisor = supName;
+  });
+  const out = Object.values(teams).filter(tm => tm.supervisor !== NOT_IN_HIER || tm.onHold > 0).map(tm => ({
+    supervisor: tm.supervisor, initials: tm.initials, onHold: tm.onHold, breached: tm.breached, incorrect: tm.incorrect,
+    role: tm.supervisor === NOT_IN_HIER ? 'Assignees with tickets who are not in the hierarchy'
+      : tm.groups.size ? [...tm.groups].join(', ') + ' Supervisor' : 'Supervisor',
+    agents: [...tm.agents.values()].map(ag => Object.assign(ag, { groupList: [...ag.groups].join(', ') })),
+  }));
+  refill(TEAMS, out.sort((a, b) => b.onHold - a.onHold));
+}
+
+const _v67Apply = applyLiveData;
+applyLiveData = function (d) {
+  _v67Apply(d);
+  buildTeamsByAssignee();
+  // Closed tickets get their supervisor the same way (for the Supervisor filter on Closed)
+  CLOSED.forEach(c => { c.supervisor = supervisorOf(c.assignee); });
+  buildCalc(TICKETS);
+  updateSidebarCounts();
+};
+
+// ─── Team Hierarchy: show the "Not in hierarchy" card and let Admins add people ───
+function addToHierarchy(name) {
+  setView('hierarchy');
+  let tries = 0;
+  const wait = setInterval(() => {
+    if ((hierCache || tries > 40) && currentView === 'hierarchy') {
+      clearInterval(wait);
+      openAgentEditor();
+      const el = document.getElementById('hm-name'); if (el) el.value = name;
+      const em = document.getElementById('hm-email'); if (em) em.focus();
+    }
+    tries++;
+  }, 100);
+}
+// (Team Hierarchy handles “Not in hierarchy” directly in renderTeamViewV2)
 </script>
 
 </div> <!-- end #app-shell -->
