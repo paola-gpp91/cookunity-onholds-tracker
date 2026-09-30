@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.5</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.6</div>
   </div>
 </div>
 
@@ -7172,6 +7172,527 @@ const _v65StartApp = startApp;
 startApp = function () { lockLead(); sortOldestFirst(); return _v65StartApp(); };
 const _v65Cycle = cycleUser;
 cycleUser = function () { const r = _v65Cycle.apply(this, arguments); lockLead(); if (currentView === 'leads' && VIEWS.leads) VIEWS.leads.render(); return r; };
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- GUIDE v2 — approved On-Hold process (source of truth), operational layout.   -->
+<!-- Content only: does not change tracker data, uploads, reconciliation or math. -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+.gd-crumbs{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-3);margin-bottom:10px;flex-wrap:wrap}
+.gd-crumbs a{color:#C2410C;cursor:pointer;font-weight:600;text-decoration:none}
+.gd-crumbs a:hover{text-decoration:underline}
+.gd-head{display:flex;align-items:center;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+.gd-head-icon{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:var(--gd-accent-soft,#FFF7ED)}
+.gd-head h1{font-size:24px;margin:0;color:var(--text)}
+.gd-lead{font-size:14px;color:var(--text-2);margin:0 0 14px;max-width:820px;line-height:1.55}
+.gd-toc{position:sticky;top:0;z-index:5;display:flex;gap:6px;flex-wrap:wrap;background:var(--bg,#F8FAFC);padding:8px 0 10px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+.gd-toc button{border:1px solid var(--border);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--text-2);cursor:pointer;font-family:var(--font-sans)}
+.gd-toc button:hover{border-color:#FDBA74;color:#C2410C}
+.gd-sec{margin:26px 0 8px;scroll-margin-top:60px}
+.gd-sec h2{font-size:17px;margin:0 0 4px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.gd-sec .gd-sub{font-size:13px;color:var(--text-3);margin:0 0 12px}
+.gd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.gd-grid.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.gd-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-card);min-width:0}
+.gd-card h3{font-size:14px;margin:0 0 6px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.gd-card p,.gd-card li{font-size:13px;color:var(--text-2);line-height:1.55;margin:0}
+.gd-card ul{margin:6px 0 0 18px;padding:0}
+.gd-num{width:26px;height:26px;border-radius:50%;background:#7C2D12;color:#fff;display:inline-grid;place-items:center;font-size:12.5px;font-weight:700;flex-shrink:0}
+.gd-callout{display:flex;gap:12px;border-radius:14px;padding:14px 16px;margin:12px 0;border:1px solid;align-items:flex-start}
+.gd-callout .ic{font-size:20px;line-height:1.2}
+.gd-callout .t{font-weight:700;font-size:14px;margin-bottom:2px}
+.gd-callout .b{font-size:13px;line-height:1.55}
+.gd-callout.danger{background:#FEF2F2;border-color:#FECACA;color:#7F1D1D}
+.gd-callout.warn{background:#FFFBEB;border-color:#FDE68A;color:#78350F}
+.gd-callout.info{background:#EFF6FF;border-color:#BFDBFE;color:#1E3A8A}
+.gd-callout.ok{background:#F0FDF4;border-color:#BBF7D0;color:#14532D}
+.gd-callout.brand{background:linear-gradient(135deg,#7C2D12,#C2410C);border-color:#7C2D12;color:#fff}
+.gd-st{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:800;letter-spacing:.03em;border:1px solid;white-space:nowrap}
+.gd-st.PENDING{background:#FEF9C3;color:#854D0E;border-color:#FDE047}
+.gd-st.ONHOLD{background:#F3E8FF;color:#6B21A8;border-color:#D8B4FE}
+.gd-st.OPEN{background:#DBEAFE;color:#1E40AF;border-color:#93C5FD}
+.gd-st.SOLVED{background:#DCFCE7;color:#166534;border-color:#86EFAC}
+.gd-stcard{border-radius:14px;padding:14px 16px;border:2px solid}
+.gd-stcard .big{font-size:15px;font-weight:800;margin-bottom:4px}
+.gd-stcard.PENDING{background:#FEFCE8;border-color:#FDE047;color:#713F12}
+.gd-stcard.ONHOLD{background:#FAF5FF;border-color:#D8B4FE;color:#581C87}
+.gd-stcard.OPEN{background:#EFF6FF;border-color:#93C5FD;color:#1E3A8A}
+.gd-stcard.SOLVED{background:#F0FDF4;border-color:#86EFAC;color:#14532D}
+.gd-quick{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.gd-quick-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);font-size:13.5px}
+.gd-quick-row:last-child{border-bottom:0}
+.gd-quick-row .q{font-weight:600;color:var(--text)}
+.gd-quick-row .a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:var(--text-3)}
+.gd-check{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.gd-check li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);cursor:pointer;font-size:13px;color:var(--text-2);line-height:1.5;user-select:none}
+.gd-check li .bx{width:18px;height:18px;border:2px solid #CBD5E1;border-radius:5px;flex-shrink:0;margin-top:1px;display:grid;place-items:center;font-size:12px;color:#fff}
+.gd-check li.on{border-color:#86EFAC;background:#F0FDF4}
+.gd-check li.on .bx{background:#16A34A;border-color:#16A34A}
+.gd-check li strong{color:var(--text)}
+.gd-gate{border:2px solid #7C2D12;border-radius:16px;padding:16px;background:#FFF7ED}
+.gd-gate-hdr{display:flex;align-items:center;gap:10px;font-weight:800;color:#7C2D12;font-size:15px;margin-bottom:10px}
+.gd-result{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
+.gd-result > div{border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5}
+.gd-result .yes{background:#F3E8FF;color:#581C87;border:1px solid #D8B4FE}
+.gd-result .no{background:#EFF6FF;color:#1E3A8A;border:1px solid #BFDBFE}
+.gd-sla{border-radius:16px;overflow:hidden;border:2px solid #F59E0B;background:var(--panel)}
+.gd-sla-top{background:linear-gradient(135deg,#B45309,#F59E0B);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.gd-sla-top .h{font-size:20px;font-weight:800;letter-spacing:.01em}
+.gd-timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0}
+.gd-timeline > div{padding:14px 18px;font-size:13px;line-height:1.55;color:var(--text-2)}
+.gd-timeline > div + div{border-left:1px dashed var(--border-2)}
+.gd-timeline .tl-h{font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.gd-exit{display:flex;flex-direction:column;gap:6px}
+.gd-exit .when{font-weight:700;font-size:13.5px;color:var(--text)}
+.gd-exit .go{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-3)}
+.gd-acc{border:1px solid var(--border);border-radius:12px;background:var(--panel);margin:8px 0;overflow:hidden}
+.gd-acc summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:13.5px;color:var(--text);list-style:none;display:flex;justify-content:space-between;align-items:center}
+.gd-acc summary::-webkit-details-marker{display:none}
+.gd-acc summary::after{content:'▾';color:var(--text-3);transition:transform .15s}
+.gd-acc[open] summary::after{transform:rotate(180deg)}
+.gd-acc .body{padding:0 16px 14px;font-size:13px;color:var(--text-2);line-height:1.6}
+.gd-acc .body ul{margin:4px 0 0 18px;padding:0}
+.gd-principle{text-align:center;font-size:16px;font-weight:700;padding:16px;border-radius:14px;margin:12px 0}
+.gd-tree{display:flex;flex-direction:column;align-items:center;padding:6px 0 4px}
+.gd-start{background:#0F172A;color:#fff;border-radius:999px;padding:5px 16px;font-size:11.5px;font-weight:800;letter-spacing:.08em}
+.gd-q{width:100%;max-width:560px;background:var(--panel);border:2px solid #0F172A;border-radius:14px;padding:12px 16px;text-align:center;font-weight:700;font-size:14px;color:var(--text);box-shadow:var(--shadow-card)}
+.gd-q .step{display:block;font-size:10.5px;letter-spacing:.08em;color:var(--text-3);font-weight:700;margin-bottom:3px}
+.gd-line{width:2px;height:18px;background:#CBD5E1}
+.gd-branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;width:100%;max-width:820px}
+.gd-br{border-radius:12px;padding:10px 12px;border:1.5px solid var(--border);background:var(--panel);font-size:12.5px;color:var(--text-2);line-height:1.5}
+.gd-br .ans{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;border-radius:6px;padding:1px 7px;margin-bottom:6px;background:#0F172A;color:#fff}
+.gd-br.cont{border-style:dashed;background:transparent;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-3);font-weight:600}
+.gd-br .res{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
+.gd-br ul{margin:2px 0 0 16px;padding:0}
+.gd-end{background:#F1F5F9;border-radius:999px;padding:5px 16px;font-size:12px;font-weight:700;color:var(--text-2)}
+.gd-path{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.gd-path span.n{background:#0F172A;color:#fff;border-radius:8px;padding:5px 11px;font-size:12.5px;font-weight:700}
+.gd-path span.a{color:var(--text-3);font-weight:700}
+.gd-macro{display:flex;flex-direction:column;gap:10px}
+.gd-macro-top{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.gd-macro-text{background:#F8FAFC;border:1px solid var(--border);border-left:4px solid #C2410C;border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.6;white-space:pre-wrap;color:var(--text);font-family:var(--font-sans)}
+.gd-macro-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.gd-macro-acts > div{background:var(--panel-alt);border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.5}
+.gd-macro-acts .lbl{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin-bottom:2px}
+.gd-copy{border:0;background:#C2410C;color:#fff;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--font-sans)}
+.gd-copy:hover{background:#9A3412}
+.gd-copy.done{background:#16A34A}
+.gd-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.gd-link{border:1px solid #FED7AA;background:#FFF7ED;color:#9A3412;border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--font-sans)}
+.gd-link:hover{background:#FFEDD5}
+.gd-live{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.gd-live > div{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.gd-live .v{font-size:24px;font-weight:800;color:var(--text);line-height:1.1}
+.gd-live .l{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);font-weight:700}
+.gd-live .s{font-size:11.5px;color:var(--text-3);margin-top:3px}
+.gd-top5{display:flex;flex-direction:column;gap:6px}
+.gd-top5 > div{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);font-size:12.5px}
+.gd-top5 .rank{width:22px;height:22px;border-radius:50%;background:#FEE2E2;color:#B91C1C;display:grid;place-items:center;font-weight:800;font-size:11px;flex-shrink:0}
+.gd-top5 .sub{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)}
+.gd-top5 .d{font-weight:800;color:#B91C1C}
+.gd-map td{font-size:12.5px}
+.gd-pager{display:flex;justify-content:space-between;gap:10px;margin:30px 0 10px;flex-wrap:wrap}
+.gd-pager button{flex:1;min-width:200px;text-align:left;border:1px solid var(--border);background:var(--panel);border-radius:12px;padding:12px 14px;cursor:pointer;font-family:var(--font-sans)}
+.gd-pager button:hover{border-color:#FDBA74}
+.gd-pager .k{font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.gd-pager .n{font-size:14px;font-weight:700;color:var(--text);margin-top:2px}
+.gd-yesno{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px}
+.gd-yesno > div{border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.5;border:1px solid var(--border);background:var(--panel-alt)}
+.gd-yesno .ans{font-weight:800;font-size:11px;letter-spacing:.06em}
+@media (max-width:640px){ .gd-head h1{font-size:20px} .gd-quick-row{flex-direction:column;align-items:flex-start} .gd-quick-row .a{justify-content:flex-start} .gd-timeline > div + div{border-left:0;border-top:1px dashed var(--border-2)} }
+</style>
+<script>
+// ─── Reusable components ─────────────────────────────────────────────────────
+const G = {
+  st(s) { const k = s.replace('-', ''); const e = { PENDING: '🟡', ONHOLD: '🟣', OPEN: '🔵', SOLVED: '🟢' }[k] || ''; return `<span class="gd-st ${k}">${e} ${s}</span>`; },
+  callout(type, icon, title, body) { return `<div class="gd-callout ${type}"><div class="ic">${icon}</div><div><div class="t">${title}</div>${body ? `<div class="b">${body}</div>` : ''}</div></div>`; },
+  sec(id, title, sub, inner) { return `<section class="gd-sec" id="gd-${id}"><h2>${title}</h2>${sub ? `<p class="gd-sub">${sub}</p>` : ''}${inner}</section>`; },
+  card(title, body, extra = '') { return `<div class="gd-card" ${extra}>${title ? `<h3>${title}</h3>` : ''}${body}</div>`; },
+  ul(items) { return `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`; },
+  check(items) { return `<ul class="gd-check">${items.map(i => `<li onclick="this.classList.toggle('on')"><span class="bx">✓</span><span>${i}</span></li>`).join('')}</ul>`; },
+  acc(title, body, open) { return `<details class="gd-acc" ${open ? 'open' : ''}><summary>${title}</summary><div class="body">${body}</div></details>`; },
+  quick(rows) { return `<div class="gd-quick">${rows.map(([q, a]) => `<div class="gd-quick-row"><span class="q">${q}</span><span class="a">→ ${a}</span></div>`).join('')}</div>`; },
+  link(label, js) { return `<button class="gd-link" onclick="${js}">${label} →</button>`; },
+  yesno(yes, no) { return `<div class="gd-yesno"><div><div class="ans" style="color:#166534">YES</div>${yes}</div><div><div class="ans" style="color:#B91C1C">NO</div>${no}</div></div>`; },
+  // Flowchart: steps = [{ q, branches:[{ ans, res:[status…], lines:[…] }], cont:'NO' }]
+  tree(steps, endLabel) {
+    let h = '<div class="gd-tree"><div class="gd-start">START</div>';
+    steps.forEach((s, i) => {
+      h += `<div class="gd-line"></div><div class="gd-q"><span class="step">STEP ${i + 1}</span>${s.q}</div><div class="gd-line"></div><div class="gd-branches">`;
+      s.branches.forEach(b => {
+        h += `<div class="gd-br"><span class="ans">${b.ans}</span>${b.res ? `<div class="res">${b.res.map(G.st).join(' ')}</div>` : ''}${b.lines && b.lines.length ? G.ul(b.lines) : ''}</div>`;
+      });
+      if (s.cont) h += `<div class="gd-br cont"><span class="ans">${s.cont}</span> continue ↓</div>`;
+      h += '</div>';
+    });
+    return h + (endLabel ? `<div class="gd-line"></div><div class="gd-end">${endLabel}</div>` : '') + '</div>';
+  },
+};
+function gdGo(view, tweak) {
+  if (tweak === 'overSla' && typeof AH !== 'undefined') { AH.applied = Object.assign(ahDefaults(), { age: 'over' }); AH.draft = Object.assign({}, AH.applied); AH.q = ''; }
+  setView(view);
+}
+function gdScroll(id) { const el = document.getElementById('gd-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function gdToc(items) { return `<div class="gd-toc">${items.map(([id, l]) => `<button onclick="gdScroll('${id}')">${l}</button>`).join('')}</div>`; }
+
+// Live snapshot from the tracker (read-only; uses the same data the tracker shows)
+function gdLive() {
+  const act = (typeof TICKETS !== 'undefined' ? TICKETS : []).filter(t => t.status === 'On-Hold');
+  const top = act.slice().sort((a, b) => b.days - a.days).slice(0, 5);
+  return { total: act.length, over3: act.filter(t => t.days >= 3).length, over14: act.filter(t => t.days >= 14).length,
+    oldest: top[0], avg: act.length ? Math.round(act.reduce((n, t) => n + t.days, 0) / act.length * 10) / 10 : 0, top };
+}
+function gdTop5() {
+  const { top } = gdLive();
+  if (!top.length) return '<div class="lr-muted" style="padding:10px">No On-Hold tickets in the tracker right now.</div>';
+  return `<div class="gd-top5">${top.map((t, i) => `<div><span class="rank">${i + 1}</span>
+    <a class="lr-link" href="${ZENDESK_TICKET_URL}${lrEsc(t.id)}" target="_blank">#${lrEsc(t.id)}</a>
+    <span class="sub">${lrEsc(t.subject)} · ${lrEsc(t.assignee || '')}</span><span class="d">${t.days}d</span>
+    <button class="btn btn-ghost btn-sm" onclick="setView('leads');reviewTicket('${lrEsc(t.id)}')">Review</button></div>`).join('')}</div>`;
+}
+
+// ─── Section content (approved process — source of truth) ────────────────────
+const GD_INTERNAL_TEAMS = ['Operations', 'Finance', 'Food Safety/FSQA', 'Product/Tech', 'Growth', 'Logistics/3PL', 'Management', 'Other internal teams, when applicable'];
+
+const GD_MACROS = [
+  { title: 'Incorrect On-Hold Usage', when: 'Use when ticket does not meet On-Hold criteria.',
+    text: `This ticket is currently On-Hold, but it does not meet the criteria for this status.
+
+On-Hold should only be used when:
+• We are waiting for an internal team
+• The internal request/escalation has already been submitted
+• No further CX action is possible until we receive the response
+• The customer has been informed
+
+Please review the ticket and:
+1. Move it to the correct status.
+2. Take the next required action.
+3. Review the On-Hold Decision Tree if you're unsure which status applies.
+
+If you're unsure how to proceed, keep the ticket Open and ask Leadership for guidance.`,
+    agent: ['Update status', 'Complete next action'], review: ['Flag specialist in tracker', 'Supervisor provides feedback'] },
+  { title: 'On-Hold Checklist Missing', when: 'Use when the mandatory On-Hold checklist is incomplete.',
+    text: `This ticket was placed On-Hold, but the mandatory On-Hold checklist is incomplete.
+
+Before moving a ticket to On-Hold, confirm that:
+• The internal request/escalation has already been submitted
+• An internal note documents which team was contacted and what is being requested
+• The customer has been informed that their case is being reviewed internally
+
+Please move the ticket to Open, complete the missing requirements, and return it to On-Hold only if all criteria are met.`,
+    agent: ['Move ticket to Open', 'Complete the missing requirements'], review: ['Flag specialist', 'Supervisor provides feedback'] },
+  { title: 'On-Hold Aging: Follow-Up Required', when: 'Use when ticket has been On-Hold >72 hours and required follow-up has not been completed.',
+    text: `This ticket has been On-Hold for more than 72 hours and requires follow-up.
+
+Please:
+• Check the current status of the internal escalation
+• Complete the required internal follow-up
+• Update the customer when required
+• Document the follow-up in the ticket
+
+If a push is required, follow the established escalation path.`,
+    agent: ['Check escalation status', 'Complete & document the follow-up', 'Update the customer when required'], review: ['Flag specialist', 'Supervisor provides feedback when applicable'] },
+  { title: 'Internal Response Already Received', when: 'Use when an internal response was already received but the ticket is still On-Hold.',
+    text: `An internal response has already been received on this ticket, so it should no longer remain On-Hold.
+
+Please:
+1. Review the internal team's response.
+2. Move the ticket to Open.
+3. Take the appropriate next action.
+4. Update the customer.
+5. Move the ticket to Solved once no additional action is required.`,
+    agent: ['Review the response', 'Move to Open, act & update the customer', 'Solve when complete'], review: ['Flag specialist', 'Supervisor provides feedback'] },
+  { title: 'Customer Communication Missing', when: 'Use when the ticket was placed On-Hold without the required customer communication.',
+    text: `This ticket was placed On-Hold without the required customer communication.
+
+Before a ticket can remain On-Hold, the customer must be informed that their case is being reviewed internally.
+
+Please:
+1. Move the ticket to Open.
+2. Send the required customer update.
+3. Confirm all other On-Hold requirements are complete.
+4. Return the ticket to On-Hold only if it still meets all criteria.`,
+    agent: ['Move to Open', 'Send the customer update', 'Re-check all criteria'], review: ['Flag specialist', 'Supervisor provides feedback'] },
+  { title: 'Ticket Should Have Exited On-Hold', when: 'Use when the ticket no longer meets the conditions to remain On-Hold.',
+    text: `This ticket no longer meets the conditions required to remain On-Hold.
+
+Once the internal blocker changes or is resolved, the ticket must move to the appropriate status.
+
+Please review the case and move it to:
+• Open — if CX needs to take action
+• Pending — if we're now waiting for the customer
+• Solved — if the case is resolved and no additional action is required.`,
+    agent: ['Move to Open, Pending or Solved as applicable'], review: ['Flag specialist', 'Supervisor provides feedback'] },
+];
+
+function gdCopy(i, btn) {
+  const text = GD_MACROS[i].text;
+  const ok = () => { btn.textContent = '✓ Copied'; btn.classList.add('done'); toast('Macro copied — paste it into the ticket', 'success'); setTimeout(() => { btn.textContent = '📋 Copy Macro'; btn.classList.remove('done'); }, 1800); };
+  const fallback = () => { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); ok(); } catch (e) { toast('Copy not available — select the text and press Ctrl+C', 'info'); } ta.remove(); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+}
+
+const GD_SECTIONS = {
+  purpose: { icon: '🎯', title: 'Purpose & Definition', accent: '#DBEAFE',
+    lead: 'What On-Hold means, the 4 conditions it requires, and which status applies instead.',
+    toc: [['what', 'What is On-Hold?'], ['four', 'The 4 conditions'], ['statuses', 'Which status?'], ['ten', 'In 10 seconds']],
+    body: () => `
+      ${G.sec('what', '🧭 What is On-Hold?', '', `
+        <div class="gd-card" style="border-left:4px solid #7E22CE"><p style="font-size:14px;color:var(--text)"><strong>On-Hold is a Zendesk ticket status used exclusively when an agent has completed all possible actions and is waiting for a response from an internal team before they can proceed with resolving the customer's issue.</strong></p></div>
+        ${G.callout('danger', '🔴', 'On-Hold is not a waiting room.', 'It is a temporary status used only when progress is blocked by an internal dependency.')}
+        <div class="gd-grid two">
+          ${G.card('🏢 Common internal teams', G.ul(GD_INTERNAL_TEAMS))}
+          ${G.card('🔑 Key principle', `<p style="font-size:15px;color:var(--text);font-weight:700;margin-bottom:8px">On-Hold = Blocked by an internal dependency.</p>
+            <p>It does not mean that a ticket is simply paused or that the Agent wants to review it later.</p>
+            <p style="margin-top:8px">If the ticket is not blocked by an internal dependency, it does not belong in On-Hold.</p>`)}
+        </div>`)}
+      ${G.sec('four', '✅ The 4 Conditions for On-Hold', 'ALL FOUR conditions must be met.', `
+        <div class="gd-grid">
+          ${G.card('<span class="gd-num">1</span> Waiting for an Internal Team', '<p>The Agent is waiting for a response/action from an internal team.</p>')}
+          ${G.card('<span class="gd-num">2</span> Internal Request Already Sent', '<p>The required internal request or escalation has already been submitted.</p>')}
+          ${G.card('<span class="gd-num">3</span> CX Cannot Move Forward', '<p>The Agent cannot take the next required action until the internal team responds.</p>')}
+          ${G.card('<span class="gd-num">4</span> Customer Has Been Informed', '<p>The customer has been clearly informed that the case is being reviewed internally.</p>')}
+        </div>
+        ${G.callout('warn', '⚠️', 'ALL 4 CONDITIONS MUST BE TRUE', 'If one condition is missing, the ticket does not belong in On-Hold.')}`)}
+      ${G.sec('statuses', '🗂️ Quick Reference — Which Status Applies?', '', `
+        <div class="gd-grid">
+          <div class="gd-stcard PENDING"><div class="big">🟡 PENDING</div>Waiting for the <strong>customer</strong>.</div>
+          <div class="gd-stcard ONHOLD"><div class="big">🟣 ON-HOLD</div>Waiting for an <strong>internal team</strong>, after all requirements have been completed.</div>
+          <div class="gd-stcard OPEN"><div class="big">🔵 OPEN</div>CX can still take action or needs guidance.</div>
+          <div class="gd-stcard SOLVED"><div class="big">🟢 SOLVED</div>The case is resolved or decided.</div>
+        </div>`)}
+      ${G.sec('ten', '⏱️ On-Hold in 10 Seconds', '', `
+        ${G.quick([['Waiting for the customer?', G.st('PENDING')], ['Waiting for an internal team?', G.st('ON-HOLD') + ' after completing all requirements'],
+          ['Can CX still take action?', G.st('OPEN')], ['Case resolved or decided?', G.st('SOLVED')]])}
+        <div class="gd-principle" style="background:#FAF5FF;color:#581C87;border:1px solid #D8B4FE">On-Hold is a dependency status — not a waiting room.</div>`)}` },
+
+  agent: { icon: '👤', title: 'For Agents', accent: '#FFEDD5',
+    lead: 'Everything an Agent needs to know about using On-Hold correctly: entry criteria, mandatory checklist, ownership, SLA, and exit rules.',
+    toc: [['means', 'What it means'], ['entry', 'Entry criteria'], ['not', 'When NOT to use'], ['gate', 'Checklist'], ['own', 'Ownership'], ['sla', '72h SLA'], ['exit', 'Exit rules'], ['rule', 'Quick rule']],
+    body: () => `
+      ${G.sec('means', '📌 What On-Hold Means for You', 'When you place a ticket On-Hold:', `
+        <div class="gd-card">${G.ul(['You are waiting for an internal team response.',
+          'The required internal request or escalation has already been sent: <strong>Jira ticket, Wabi-Sabi, Slack thread, or side conversation with the responsible team.</strong>',
+          "You cannot take further action until that response is received to provide an answer to the customer.",
+          'The customer has been informed that the case is being reviewed internally.',
+          'You remain the owner of the ticket and are responsible for the required follow-ups.'])}</div>
+        ${G.callout('brand', '👤', 'On-Hold does not transfer ownership. You remain responsible for the ticket.', '')}`)}
+      ${G.sec('entry', '1. Entry Criteria — When You CAN Use On-Hold', 'All four conditions must be true.', `
+        <div class="gd-grid">
+          ${G.card('<span class="gd-num">1</span> Waiting for an Internal Team', '<p>This may include:</p>' + G.ul(GD_INTERNAL_TEAMS))}
+          ${G.card('<span class="gd-num">2</span> Internal Request Sent', '<p>The required request/escalation has already been submitted through:</p>' + G.ul(['Jira ticket', 'Wabi-Sabi', 'Slack thread', 'Side conversation with the responsible team', 'Other applicable internal escalation']))}
+          ${G.card('<span class="gd-num">3</span> CX Is Blocked', "<p>You cannot move forward with the customer's case until the internal response/action is received.</p>")}
+          ${G.card('<span class="gd-num">4</span> Customer Informed', '<p>The customer has been clearly informed that their case is being reviewed internally.</p>')}
+        </div>
+        ${G.callout('warn', '⚠️', 'All four conditions are required.', '')}`)}
+      ${G.sec('not', '2. When NOT to Use On-Hold', '', `
+        ${G.quick([['Waiting for customer reply', G.st('PENDING')], ["You don't know what to do", G.st('OPEN') + ' Ask Leadership for guidance.'],
+          ['Decision already made', G.st('SOLVED')], ['Follow-up reminder only', G.st('OPEN')], ['CX can still actively work the case', G.st('OPEN')]])}`)}
+      ${G.sec('gate', '3. Mandatory Checklist Before Moving to On-Hold', 'Tick the boxes as a self-check (not saved).', `
+        <div class="gd-gate"><div class="gd-gate-hdr">🔒 ON-HOLD GATE</div>
+          <div style="font-size:13px;color:#7C2D12;margin-bottom:10px">If any required item is missing, the ticket cannot move to On-Hold.</div>
+          ${G.check(['<strong>Internal request sent</strong><br>The required internal request/escalation has already been submitted.',
+            '<strong>Internal note added</strong><br>Document: which team was contacted, and what is being requested. This also applies when the escalation is handled through Jira.',
+            '<strong>Customer-facing message sent</strong><br>The customer should be informed: that we are reviewing the case internally, and when they can expect an update, if applicable.'])}
+          <div class="gd-result"><div class="yes"><strong>Everything complete?</strong><br>→ Ticket may move to ${G.st('ON-HOLD')}</div>
+            <div class="no"><strong>Something missing?</strong><br>→ Keep the ticket ${G.st('OPEN')} and complete the missing action.</div></div>
+        </div>`)}
+      ${G.sec('own', '4. Ownership Model', '', `
+        ${G.callout('info', '🙋', 'On-Hold does NOT mean unowned.', 'The Agent or Lead remains the owner of the Zendesk ticket. Internal teams never take ownership of the Zendesk ticket.')}
+        <p class="gd-sub">The ticket owner is responsible for:</p>
+        <div class="gd-grid">
+          ${G.card('👀 Monitoring', '<p>Check each day if the customer has replied.</p>')}
+          ${G.card('📨 Internal follow-ups', '<p>Ask for pushes when needed.</p>')}
+          ${G.card('⏱️ SLA tracking', '<p>Track and communicate how long the ticket has been On-Hold and how long the customer has been waiting.</p>')}
+          ${G.card('💬 Customer updates', '<p>Advise the customer that we are still working on the case when required.</p>')}
+          ${G.card('🔄 Internal responses', '<p>Check each day whether there is an update on the escalation.</p>')}
+          ${G.card('🏷️ Status management', '<p>Remove the ticket from On-Hold when the blocker changes or is resolved.</p>')}
+        </div>`)}
+      ${G.sec('sla', '5. Internal SLA', '', `
+        <div class="gd-sla"><div class="gd-sla-top"><span style="font-size:24px">⚠️</span><div><div class="h">72 HOURS MAXIMUM IN ON-HOLD</div><div style="font-size:12.5px;opacity:.9">On-Hold tickets must be actively monitored.</div></div></div>
+          <div class="gd-timeline">
+            <div><div class="tl-h">🟢 Before 72 hours</div>If the internal dependency remains active and all On-Hold requirements remain valid:<br>→ Continue monitoring the ticket in ${G.st('ON-HOLD')}</div>
+            <div><div class="tl-h">🟠 At / After 72 hours</div>If no response has been received:<br>→ <strong>An internal follow-up is required.</strong></div>
+            <div><div class="tl-h">👁️ Zendesk view to monitor</div><strong>On-Hold > 72 hours</strong></div>
+          </div></div>
+        ${G.callout('warn', '⏳', 'Reaching 72 hours does not mean the ticket can simply continue aging without action.', '')}`)}
+      ${G.sec('exit', '6. Exit Rules — When a Ticket MUST Leave On-Hold', '', `
+        <div class="gd-grid two">
+          ${G.card('', `<div class="gd-exit"><div class="when">📥 Internal Response Received</div><div class="go">→ Move to ${G.st('OPEN')}</div></div><p style="margin-top:6px">Agent:</p>${G.ul(['Reviews the internal response', 'Takes the appropriate action', 'Responds to the customer'])}`)}
+          ${G.card('', `<div class="gd-exit"><div class="when">🔕 No Internal Response, but Customer Needs an Update</div><div class="go">→ Move to ${G.st('OPEN')}</div></div><p style="margin-top:6px">Agent:</p>${G.ul(['Sends a proactive customer update', 'Asks their Lead for an update or raises a Wabi-Sabi for a push', 'Sets expectations with the customer about a final outcome once the Lead/Supervisor provides an answer'])}`)}
+          ${G.card('', `<div class="gd-exit"><div class="when">🐢 Internal Reply Received, but Fix Will Not Happen Soon</div><div class="go">→ Move to ${G.st('OPEN')}</div></div><p style="margin-top:6px">Agent:</p>${G.ul(['Communicates the outcome/status to the customer', 'Sets appropriate expectations', 'Asks their Lead/Supervisor whether a different path can be provided — for example, a discount for the wait and experience', 'Closes the interaction according to the applicable process'])}`)}
+          ${G.card('', `<div class="gd-exit"><div class="when">✅ Issue No Longer Applies</div><div class="go">→ Update the customer with the resolution → Move to ${G.st('SOLVED')}</div></div><p style="margin-top:6px">No additional action is required.</p>`)}
+        </div>`)}
+      ${G.sec('rule', '⚡ Quick Agent Rule', '', G.quick([
+        ['Waiting for internal team + completely blocked + checklist complete?', G.st('ON-HOLD')],
+        ['Need to take action?', G.st('OPEN')], ['Waiting for customer?', G.st('PENDING')], ['Nothing else needs to happen?', G.st('SOLVED')]]))}` },
+
+  lead: { icon: '🛡️', title: 'For Leads & Supervisors', accent: '#EDE9FE',
+    lead: 'Agents own execution. Leads & Supervisors own queue health and correctness.',
+    toc: [['roles', 'Who owns what'], ['cadence', 'Review cadence'], ['top5', 'Top 5 oldest'], ['process', 'Decision process'], ['escalate', 'When to escalate'], ['more', 'Weekly review & special cases']],
+    body: () => `
+      <div class="gd-principle" style="background:#F5F3FF;color:#4C1D95;border:1px solid #DDD6FE">Agents own execution. Leads & Supervisors own queue health and correctness.</div>
+      ${G.sec('roles', '👥 Who Owns What', '', `
+        <div class="gd-grid two">
+          ${G.card('👤 Agents Own Execution', '<p>Agents remain responsible for:</p>' + G.ul(['Monitoring their On-Hold tickets', 'Checking for customer responses', 'Checking for internal escalation updates', 'Following up when necessary', 'Keeping the customer informed', 'Taking action once an answer is received', 'Moving the ticket out of On-Hold when appropriate']))}
+          ${G.card('🛡️ Leads & Supervisors Own Queue Health', '<p>Leads and Supervisors are responsible for:</p>' + G.ul(['Detecting incorrect use of On-Hold using the tracker', 'Preventing unnecessary aging if the ticket should not be On-Hold', 'Identifying tickets requiring action', 'Enforcing On-Hold entry and exit rules', 'Identifying repeat misuse in the tracker', 'Providing coaching when necessary', 'Pushing/escalating eligible tickets when necessary']))}
+        </div>
+        ${G.card('📈 Escalation Path', `<div class="gd-path"><span class="n">Lead</span><span class="a">→ asks Supervisor to unblock →</span><span class="n">Supervisor</span><span class="a">→ asks Manager to unblock →</span><span class="n">Manager</span></div>
+          <p style="margin-top:8px">Internal teams never take ownership of the Zendesk ticket.</p>`, 'style="margin-top:12px"')}`)}
+      ${G.sec('cadence', '🗓️ Review Cadence — Every Two Days', 'There are <strong>4 designated hours provided by WFM: 2 AM and 2 PM.</strong> During the review, focus on:', `
+        <div class="gd-grid">
+          ${G.card('⏳ Aging', '<p>Review tickets from <strong>oldest to newest</strong>.</p>')}
+          ${G.card('🔝 Top 5 Oldest', '<p>Tickets approaching or exceeding 72 hours. The tracker flags the <strong>Top 5 oldest tickets</strong>.</p>')}
+          ${G.card('🚩 Obvious On-Hold Misuse', '<p>Flag the specialist. Supervisor must provide feedback.</p>')}
+          ${G.card('📝 Missing Documentation', '<p>Identify missing required documentation.</p>')}
+          ${G.card('💬 Missing Customer Communication', '<p>Flag the specialist. Supervisor must provide feedback.</p>')}
+          ${G.card('📥 Internal Response Already Received', '<p>Flag the specialist. Supervisor must provide feedback.</p>')}
+          ${G.card('🔀 Ticket Should Be Open or Solved', '<p>Flag the specialist. Supervisor must provide feedback.</p>')}
+          ${G.card('📨 Internal Follow-Up Required', '<p>Identify tickets requiring an additional follow-up.</p>')}
+        </div>
+        <div class="gd-links">${G.link('🧑‍💼 Open Lead Monitoring (oldest first)', "setView('leads')")}${G.link('⚠️ Incorrect Usage', "setView('incorrect')")}${G.link('🗂️ Upload Logs', "setView('logs')")}</div>`)}
+      ${G.sec('top5', '🔝 Top 5 Oldest — Live from the Tracker', 'Validate each of these during the review:', `
+        <div class="gd-grid two">
+          <div>${gdTop5()}</div>
+          ${G.card('☑️ For each ticket', G.check(['Still legitimately On-Hold?', 'Internal escalation still active?', 'Agent followed up?', 'Customer updated when required?', 'Additional push required?', 'Should status actually be Open, Pending, or Solved?']))}
+        </div>`)}
+      ${G.sec('process', '🧭 Lead/Supervisor Decision Process', '', G.tree([
+        { q: 'Is the ticket genuinely waiting for an internal team?', branches: [{ ans: 'NO', res: ['OPEN'], lines: ['Move to OPEN', 'Use appropriate coaching macro', 'Explain correct status/process'] }], cont: 'YES' },
+        { q: 'Is the mandatory On-Hold checklist complete?<div style="font-weight:500;font-size:12.5px;color:var(--text-3);margin-top:6px">☐ Internal request/escalation exists · ☐ Internal note documents the request · ☐ Customer has been informed</div>',
+          branches: [{ ans: 'NO', res: ['OPEN'], lines: ['Move to OPEN', 'Ask Agent to complete missing requirements', 'Use appropriate coaching macro'] }], cont: 'YES' },
+        { q: 'Has the ticket been On-Hold for more than 72 hours?', branches: [{ ans: 'NO', res: ['ON-HOLD'], lines: ['Leave ON-HOLD if legitimately blocked.'] }], cont: 'YES' },
+        { q: 'Has the Agent followed up on the escalation?', branches: [{ ans: 'NO', lines: ['Coach Agent', 'Request required follow-up'] }, { ans: 'YES', lines: ['Lead/Supervisor reviews whether a push/escalation is required.'] }] },
+      ]))}
+      ${G.sec('escalate', '🚀 When Leads & Supervisors Can Escalate', 'A Lead/Supervisor may push when BOTH are true:', `
+        ${G.check(['Ticket has been On-Hold for more than 72 hours', '<strong>AND</strong> internal notes show the Agent has already attempted the required follow-up'])}
+        ${G.callout('ok', '✅', 'When both are true → use the appropriate internal escalation/push process.', 'Escalating does not transfer ticket ownership.')}`)}
+      ${G.sec('more', '📚 Weekly Review, Special Cases & Don\'ts', '', `
+        ${G.acc('🔎 Weekly Deep Review', '<p>Use the weekly review to identify:</p>' + G.ul(['Repeat On-Hold misuse', 'Specialists with recurring incorrect usage', 'Aging trends', 'Internal teams creating repeated blockers', 'Escalations consistently delayed', 'Coaching opportunities', 'Systemic issues affecting queue health']) +
+          `<div class="gd-links">${can('viewPerformance') ? G.link('🏆 Lead Performance', "setView('performance')") : ''}${G.link('📈 Analytics', "setView('analytics')")}${G.link('🔁 Reappeared tickets', "setView('reappeared')")}</div>`, true)}
+        ${G.acc('🧩 Special Cases', '<p>A ticket should not remain indefinitely On-Hold simply because the internal issue remains unresolved.</p>' +
+          G.card('Internal Team Working on Issue — No ETA', '<p>Determine appropriate customer communication and whether the ticket should be closed with expectations rather than remaining On-Hold indefinitely.</p>', 'style="margin-top:8px"') +
+          G.card('Escalation Exists — Fix Will Not Happen Soon', '<p>Determine the appropriate customer communication and next path rather than allowing the ticket to continue aging unnecessarily.</p>', 'style="margin-top:8px"'))}
+        ${G.acc('🚫 What Leads & Supervisors Should NOT Do', G.ul(['Work the ticket on behalf of the Agent', 'Reply directly to the customer instead of having the Agent manage their ticket', 'Leave incorrectly categorized tickets On-Hold', 'Allow tickets to remain On-Hold simply to "buy time"', 'Push an escalation without validating required conditions', 'Remove ownership from the Agent']))}`)}` },
+
+  tree: { icon: '🌳', title: 'Decision Trees', accent: '#DCFCE7',
+    lead: 'Follow the questions top to bottom. Each answer ends in a status or tells you to continue.',
+    toc: [['t1', '1 · Can it go On-Hold?'], ['t2', '2 · Should it remain?'], ['t3', '3 · Over 72 hours']],
+    body: () => `
+      ${G.sec('t1', '🌳 Decision Tree 1 — Can This Ticket Go On-Hold?', '', G.tree([
+        { q: 'Can CX continue working on or resolve the case right now?', branches: [{ ans: 'YES', res: ['OPEN'], lines: ['Take required action', 'SOLVE if completed'] }], cont: 'NO' },
+        { q: 'Who are we waiting for?', branches: [{ ans: 'CUSTOMER', res: ['PENDING'] }], cont: 'INTERNAL TEAM' },
+        { q: 'Has the internal request/escalation already been sent?', branches: [{ ans: 'NO', res: ['OPEN'], lines: ['Submit escalation first'] }], cont: 'YES' },
+        { q: 'Is mandatory On-Hold checklist complete?', branches: [{ ans: 'NO', res: ['OPEN'], lines: ['Complete missing requirements'] }], cont: 'YES' },
+        { q: 'Can CX move forward without the internal response?', branches: [{ ans: 'YES', res: ['OPEN'] }, { ans: 'NO', res: ['ON-HOLD'] }] },
+      ]))}
+      ${G.sec('t2', '🌳 Decision Tree 2 — Should This Ticket Remain On-Hold?', 'Ticket currently ON-HOLD.', G.tree([
+        { q: 'Has internal team responded?', branches: [{ ans: 'YES', res: ['OPEN'], lines: ['Review response', 'Take action', 'Update customer', 'SOLVE when completed'] }], cont: 'NO' },
+        { q: 'Is ticket still genuinely blocked?', branches: [{ ans: 'NO', lines: ['Determine appropriate status:', 'CX action required → ' + G.st('OPEN'), 'Waiting for customer → ' + G.st('PENDING'), 'Resolved → ' + G.st('SOLVED')] }], cont: 'YES' },
+        { q: 'Has ticket reached 72 hours?', branches: [{ ans: 'NO', res: ['ON-HOLD'], lines: ['Remain ON-HOLD and monitor.'] }, { ans: 'YES', lines: ['Continue to aging/escalation decision → <a class="lr-link" onclick="gdScroll(\'t3\')">Decision Tree 3</a>'] }] },
+      ]))}
+      ${G.sec('t3', '🌳 Decision Tree 3 — Ticket Over 72 Hours', '', G.tree([
+        { q: 'Has Agent followed up on internal escalation?', branches: [{ ans: 'NO', lines: ['Follow-up required', 'Document action', 'If detected during review: flag specialist in tracker', 'Supervisor provides feedback when applicable'] }], cont: 'YES' },
+        { q: 'Is an additional push/escalation required?', branches: [
+          { ans: 'YES', lines: ['Follow escalation path:', '<div class="gd-path" style="margin-top:4px"><span class="n">Agent</span><span class="a">→</span><span class="n">Lead</span><span class="a">→</span><span class="n">Supervisor</span><span class="a">→</span><span class="n">Manager</span></div>'] },
+          { ans: 'NO', lines: ['Continue managing according to internal escalation status.'] }] },
+      ]))}
+      ${G.callout('info', '🙋', 'Escalation does not change ownership.', '')}` },
+
+  macros: { icon: '💬', title: 'Coaching Macros', accent: '#FEF3C7',
+    lead: 'Use standardized coaching instead of free-text feedback. Copy a macro, paste it into the ticket, then complete the Review Action.',
+    toc: GD_MACROS.map((m, i) => ['m' + i, (i + 1) + ' · ' + m.title]),
+    body: () => GD_MACROS.map((m, i) => G.sec('m' + i, `💬 Macro ${i + 1} — ${m.title}`, '', `
+      <div class="gd-card gd-macro">
+        <div class="gd-macro-top"><div style="font-size:13px;color:var(--text-2)"><strong>When to use:</strong> ${m.when}</div>
+          <button class="gd-copy" onclick="gdCopy(${i}, this)">📋 Copy Macro</button></div>
+        <div class="gd-macro-text">${lrEsc(m.text)}</div>
+        <div class="gd-macro-acts">
+          <div><div class="lbl">Agent action required</div>${m.agent.map(a => '→ ' + a).join('<br>')}</div>
+          <div><div class="lbl">Review action</div>${m.review.map(a => '→ ' + a).join('<br>')}
+            <div class="gd-links" style="margin-top:6px">${G.link('⚑ Flag in Lead Monitoring', "setView('leads')")}${G.link('⚠️ Incorrect Usage', "setView('incorrect')")}</div></div>
+        </div></div>`)).join('') },
+
+  metrics: { icon: '📊', title: 'Success Metrics', accent: '#CCFBF1',
+    lead: 'The objective is not simply to reduce On-Hold volume.',
+    toc: [['healthy', 'Healthy queue'], ['live', 'Live snapshot'], ['misuse', 'Incorrect usage'], ['recon', 'Review-to-review'], ['logs', 'Review log ownership']],
+    body: () => {
+      const L = gdLive();
+      return `
+      ${G.sec('healthy', '💚 A Healthy On-Hold Queue Means', '', `<div class="gd-card">${G.ul(['Tickets genuinely belong there', 'Tickets are actively monitored', 'Aging tickets receive appropriate follow-up', 'Incorrect usage is identified and corrected', 'Specialists receive feedback', 'Blockers are escalated appropriately', 'Tickets leave On-Hold when the blocker changes/resolves'])}</div>
+        ${G.callout('info', '🎯', 'Overall Queue Health — Total On-Hold Tickets. Healthy target: fewer than 90 tickets.', 'Do not evaluate queue health based only on volume.')}`)}
+      ${G.sec('live', '📡 Live Snapshot from the Tracker', 'Read-only numbers from the latest data. Open the tracker screens for detail.', `
+        <div class="gd-live">
+          <div><div class="l">Total On-Hold</div><div class="v" style="color:${L.total < 90 ? '#15803D' : '#B91C1C'}">${L.total}</div><div class="s">Target: fewer than 90 ${L.total < 90 ? '✅' : '🚨'}</div></div>
+          <div><div class="l">Oldest ticket</div><div class="v">${L.oldest ? L.oldest.days + 'd' : '—'}</div><div class="s">${L.oldest ? '#' + lrEsc(L.oldest.id) : 'No tickets'}</div></div>
+          <div><div class="l">Average aging</div><div class="v">${L.total ? L.avg + 'd' : '—'}</div><div class="s">Across On-Hold tickets</div></div>
+          <div><div class="l">3+ days old</div><div class="v">${L.over3}</div><div class="s">≈ 72h · by the Requested date in the export</div></div>
+          <div><div class="l">14+ days old</div><div class="v">${L.over14}</div><div class="s">Tickets >14 days</div></div>
+        </div>
+        <div class="gd-links">${G.link('📊 Dashboard', "setView('dashboard')")}${G.link('🚨 Aging / over SLA (Active On-Hold)', "gdGo('tickets','overSla')")}${G.link('⚠️ Incorrect Usage', "setView('incorrect')")}${can('viewPerformance') ? G.link('🏆 Lead Performance', "setView('performance')") : ''}</div>
+        <div class="lr-section-title" style="font-size:14px">🔝 Top 5 Oldest Tickets</div>
+        <div class="gd-grid two"><div>${gdTop5()}</div>${G.card('☑️ Validate', G.check(['Still legitimately On-Hold?', 'Internal escalation still active?', 'Agent followed up?', 'Customer updated when required?', 'Additional push required?', 'Should status actually be Open, Pending, or Solved?']))}</div>`)}
+      ${G.sec('misuse', '🚩 Incorrect On-Hold Usage & Specialist Misuse', 'Flag these tickets in the tracker.', `
+        <div class="gd-grid two">
+          ${G.card('Track incorrect usage', G.ul(['No valid internal dependency', 'Missing escalation', 'Missing documentation', 'Missing customer communication', 'Internal response already received', 'Should be Open', 'Should be Pending', 'Should be Solved', 'Aging without follow-up']))}
+          ${G.card('Specialist misuse tracking', G.ul(['Total incorrect tickets', 'Incorrect tickets by specialist', 'Repeat misuse', 'Type of misuse']) + '<p style="margin-top:8px">The objective is to identify <strong>patterns</strong>, not only individual mistakes.</p><div class="gd-links">' + G.link('⚠️ Incorrect Usage', "setView('incorrect')") + '</div>')}
+        </div>`)}
+      ${G.sec('recon', '🔄 Review-to-Review Reconciliation', 'Every time a new On-Hold log is uploaded, it is compared against the <strong>most recent previous log</strong>.', `
+        <div class="table-wrap"><table class="gd-map"><thead><tr><th>Approved term</th><th>Meaning</th><th>Shown in Upload Logs as</th></tr></thead><tbody>
+          <tr><td><strong>NEW ON-HOLD</strong></td><td>Present in new log but not previous log.</td><td><span class="lr-chip lr-new">🆕 New</span></td></tr>
+          <tr><td><strong>STILL ON-HOLD</strong></td><td>Present in both logs.</td><td><span class="lr-chip lr-carried">↪ Carried</span></td></tr>
+          <tr><td><strong>LEFT ON-HOLD</strong></td><td>Present in previous log but missing from new log.</td><td><span class="lr-chip lr-removed">➖ Removed from On-Hold</span></td></tr>
+          <tr><td><strong>REAPPEARED</strong></td><td>Appeared in a previous log, later disappeared, and appears again in a future log.</td><td><span class="lr-chip lr-reappeared">🔁 Reappeared in On-Hold</span></td></tr>
+        </tbody></table></div>
+        ${G.callout('info', 'ℹ️', 'If a Ticket ID is missing from the new On-Hold log, assume it was moved out of the On-Hold queue — such as Open or Solved — unless additional information indicates otherwise.', 'Reappearing tickets require additional visibility/review.')}
+        <div class="gd-links">${G.link('🗂️ Upload Logs', "setView('logs')")}${G.link('➖ Removed from On-Hold', "setView('removed')")}${G.link('🔁 Reappeared', "setView('reappeared')")}</div>`)}
+      ${G.sec('logs', '🧾 Review Log Ownership', 'Every uploaded log keeps its own historical record. When multiple reviews happen the same day, each upload reconciles against the <strong>most recent previous upload</strong>, not simply the previous day\'s log.',
+        G.acc('What each log should capture', G.ul(['Date', 'Review time', 'Lead responsible', 'Total tickets reviewed', 'New On-Hold', 'Still On-Hold', 'Left On-Hold', 'Incorrect On-Hold', 'Tickets >72h', 'Top 5 oldest', 'Specialists flagged', 'Reappearing tickets']) +
+          `<div class="gd-links">${G.link('🗂️ Open Upload Logs', "setView('logs')")}</div>`, true))}`;
+    } },
+};
+const GD_ORDER = ['purpose', 'agent', 'lead', 'tree', 'macros', 'metrics'];
+
+// Keep the six homepage cards; point them at the new pages
+Object.assign(GUIDE_TOPICS.purpose, { icon: '🎯', title: 'Purpose & Definition', sub: 'What On-Hold is, the 4 conditions, and which status applies' });
+Object.assign(GUIDE_TOPICS.agent, { icon: '👤', title: 'For Agents', sub: 'Entry criteria, the On-Hold gate checklist, ownership, 72h SLA, exit rules' });
+Object.assign(GUIDE_TOPICS.lead, { icon: '🛡️', title: 'For Leads & Supervisors', sub: 'Queue health, review cadence, Top 5 oldest, decision process, escalation' });
+Object.assign(GUIDE_TOPICS.tree, { icon: '🌳', title: 'Decision Trees', sub: 'Can it go On-Hold? Should it remain? What if it passed 72h?' });
+Object.assign(GUIDE_TOPICS.macros, { icon: '💬', title: 'Coaching Macros', sub: 'Six standardized macros with one-click copy' });
+Object.assign(GUIDE_TOPICS.metrics, { icon: '📊', title: 'Success Metrics', sub: 'Queue health (<90), aging, misuse, reconciliation and review logs' });
+
+renderGuideSection = function (key) {
+  const s = GD_SECTIONS[key];
+  if (!s) { guideSection = null; return renderGuideView(); }
+  const i = GD_ORDER.indexOf(key), prev = GD_ORDER[i - 1], next = GD_ORDER[i + 1];
+  document.getElementById('content').innerHTML = `
+    <div class="gd-crumbs"><a onclick="backToGuideHome()">📖 Guide</a><span>›</span><span>${s.title}</span></div>
+    <div class="page-hdr" style="margin-bottom:4px"><div class="gd-head" style="--gd-accent-soft:${s.accent}"><div class="gd-head-icon">${s.icon}</div><h1>${s.title}</h1></div>
+      <div class="page-actions"><button class="btn btn-ghost btn-sm" onclick="backToGuideHome()">← Back to Guide</button></div></div>
+    <p class="gd-lead">${s.lead}</p>
+    ${gdToc(s.toc)}
+    ${s.body()}
+    <div class="gd-pager">
+      ${prev ? `<button onclick="openGuideSection('${prev}')"><div class="k">← Previous</div><div class="n">${GD_SECTIONS[prev].icon} ${GD_SECTIONS[prev].title}</div></button>` : '<span></span>'}
+      ${next ? `<button onclick="openGuideSection('${next}')" style="text-align:right"><div class="k">Next →</div><div class="n">${GD_SECTIONS[next].icon} ${GD_SECTIONS[next].title}</div></button>` : `<button onclick="backToGuideHome()" style="text-align:right"><div class="k">Done</div><div class="n">📖 Back to Guide home</div></button>`}
+    </div>`;
+  window.scrollTo(0, 0);
+};
+// Homepage keeps its layout; add the 10-second answer right under the cards
+const _gdHome = renderGuideView;
+renderGuideView = function () {
+  const r = _gdHome.apply(this, arguments);
+  if (!guideSection) {
+    const cards = document.querySelector('#content .guide-cards');
+    if (cards && !document.getElementById('gd-home-quick')) cards.insertAdjacentHTML('afterend', `<div id="gd-home-quick" style="margin-top:20px">
+      <div class="lr-section-title" style="font-size:14px">⏱️ On-Hold in 10 seconds</div>
+      ${G.quick([['Waiting for the customer?', G.st('PENDING')], ['Waiting for an internal team?', G.st('ON-HOLD') + ' after completing all requirements'], ['Can CX still take action?', G.st('OPEN')], ['Case resolved or decided?', G.st('SOLVED')]])}
+      <div class="gd-principle" style="background:#FAF5FF;color:#581C87;border:1px solid #D8B4FE;font-size:14px">On-Hold is a dependency status — not a waiting room.</div></div>`);
+  }
+  return r;
+};
+if (VIEWS.guide) VIEWS.guide.render = function () { return renderGuideView(); };
 </script>
 
 </div> <!-- end #app-shell -->
