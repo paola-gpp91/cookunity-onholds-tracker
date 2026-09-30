@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.7</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.8.1</div>
   </div>
 </div>
 
@@ -7846,7 +7846,7 @@ function ldRender() {
   pill.classList.add('show');
   pill.classList.toggle('quiet', !loud.length);
   pill.classList.toggle('late', sec >= limit * 0.66);
-  document.getElementById('ld-msg').textContent = loud.length ? j.label + '…' + (loud.length > 1 ? `  (+${loud.length - 1} more)` : '') : '💾 Saving…';
+  document.getElementById('ld-msg').textContent = loud.length ? j.label + '…' + (j.retry ? `  (connection hiccup — retry ${j.retry}/2)` : '') + (loud.length > 1 ? `  (+${loud.length - 1} more)` : '') : '💾 Saving…';
   document.getElementById('ld-sub').textContent =
     sec < 15 ? 'Pulling information from the sheet' :
     sec < limit * 0.66 ? 'Still working — large sheets can take a little longer' :
@@ -7863,24 +7863,107 @@ function ldTimeoutMessage(job) {
 }
 
 const _ldFetch = window.fetch.bind(window);
+const ldShared = new Map();          // identical reads in flight share one request
+const ldSleep = ms => new Promise(r => setTimeout(r, ms));
+function tokenExp(tok) { try { return JSON.parse(atob(String(tok).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp || 0; } catch (e) { return 0; } }
+
+let _sessionExpiredShown = false;
+function sessionExpired() {
+  if (_sessionExpiredShown) return;
+  _sessionExpiredShown = true;
+  try { sessionStorage.removeItem('idToken'); } catch (e) {}
+  try { currentIdToken = null; } catch (e) {}
+  const ls = document.getElementById('login-screen');
+  if (ls) ls.style.display = 'grid';
+  const err = document.getElementById('login-error');
+  if (err) err.textContent = '🔒 Your sign-in expired (Google sign-ins last about 1 hour). Please sign in again — you\'ll return to where you were.';
+  try { google.accounts.id.prompt(); } catch (e) {}
+}
+
 window.fetch = function (url, opts) {
   if (!/script\.google\.com\/(a\/[^/]+\/)?macros/.test(String(url))) return _ldFetch(url, opts);
-  let method = '';
-  try { method = JSON.parse((opts && opts.body) || '{}').method || ''; } catch (e) {}
-  const job = { label: LD_LABELS[method] || 'Working', start: Date.now(), quiet: LD_QUIET.has(method), write: !/^api_get/.test(method) };
+  let body = {};
+  try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
+  const method = body.method || '';
+  const isRead = /^api_get/.test(method);
+  // Expired sign-in: stop here with a clear message instead of a failed request
+  const exp = tokenExp(body.idToken);
+  if (exp && exp * 1000 < Date.now() + 15000) {
+    sessionExpired();
+    return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'Your sign-in expired — please sign in again.' }), { headers: { 'Content-Type': 'application/json' } }));
+  }
+  const dkey = isRead ? method + '|' + JSON.stringify(body.args || []) : null;
+  const cl = r => (r && typeof r.clone === 'function') ? r.clone() : r;
+  if (dkey && ldShared.has(dkey)) return ldShared.get(dkey).then(cl);
+
+  const job = { label: LD_LABELS[method] || 'Working', start: Date.now(), quiet: LD_QUIET.has(method), write: !isRead, retry: 0 };
   const id = ++ldSeq;
   ldJobs.set(id, job);
   if (!ldTick) ldTick = setInterval(ldRender, 250);
   setTimeout(ldRender, 320);   // appear right when a request passes 0.3s
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  let timer;
+  let timer, timedOut = false;
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => { try { ctrl && ctrl.abort(); } catch (e) {} reject(new Error(ldTimeoutMessage(job))); }, LOAD_TIMEOUT_MS);
+    timer = setTimeout(() => { timedOut = true; try { ctrl && ctrl.abort(); } catch (e) {} reject(new Error(ldTimeoutMessage(job))); }, LOAD_TIMEOUT_MS);
   });
-  const req = _ldFetch(url, Object.assign({}, opts, ctrl ? { signal: ctrl.signal } : {}));
-  return Promise.race([req, timeout]).finally(() => { clearTimeout(timer); ldJobs.delete(id); ldRender(); });
+  // Reads retry twice on a connection hiccup (Google busy / network blip). Saves never auto-retry,
+  // so nothing is ever saved twice.
+  const attempt = async n => {
+    try {
+      const res = await _ldFetch(url, Object.assign({}, opts, ctrl ? { signal: ctrl.signal } : {}));
+      if (isRead && res.status >= 500 && n < 2) throw new Error('HTTP ' + res.status);
+      if (res.status === 404) {
+        // Google can't find the backend link — the deployment was archived/deleted or replaced by a new one
+        const e = new Error('The tracker\'s backend link was not found (404). The Apps Script deployment was probably archived, deleted or replaced by a new one. Admin: open Apps Script → Deploy → Manage deployments and check the active Web app URL matches the one in index.html.');
+        e.noRetry = true; throw e;
+      }
+      return res;
+    } catch (e) {
+      if (timedOut || e.noRetry) throw e;
+      if (isRead && n < 2) { job.retry = n + 1; ldRender(); await ldSleep([1500, 4000][n]); if (timedOut) throw e; return attempt(n + 1); }
+      throw new Error(isRead
+        ? `Couldn't reach the tracker (${job.label.toLowerCase()}) after 3 tries. Check your internet connection and try again — if it keeps happening, Google may be busy; wait a minute.`
+        : `Couldn't confirm "${job.label}". It may or may not have been saved — refresh the page and check before trying again.`);
+    }
+  };
+  const p = Promise.race([attempt(0), timeout]).then(res => {
+    if (res && typeof res.clone === 'function') res.clone().json().then(j => { if (j && j.ok === false && /expired token|sign in again/i.test(j.error || '')) sessionExpired(); }).catch(() => {});
+    return res;
+  }).finally(() => { clearTimeout(timer); ldJobs.delete(id); ldRender(); });
+  if (dkey) { ldShared.set(dkey, p); p.then(() => ldShared.delete(dkey), () => ldShared.delete(dkey)); return p.then(cl); }
+  return p;
 };
 </script>
+<!-- v6.8 — fewer requests at sign-in · sign-in expiry handling -->
+<script>
+// Sidebar badges now come with the live data (no extra requests at sign-in)
+refreshLogBadges = function () {};
+const _v68Apply = applyLiveData;
+applyLiveData = function (d) {
+  _v68Apply(d);
+  const c = LIVE_DATA.counts;
+  if (c) {
+    const set = (id, n) => { const el = document.getElementById(id); if (el) { el.textContent = n; el.style.display = n > 0 ? '' : 'none'; } };
+    set('sb-badge-removed', c.pendingRemovals || 0);
+    set('sb-badge-reappeared', c.reappearedOnHold || 0);
+  }
+};
+// After signing in again, clear the expiry notice and re-arm it
+const _v68Start = startApp;
+startApp = function () {
+  _sessionExpiredShown = false;
+  const err = document.getElementById('login-error'); if (err) err.textContent = '';
+  return _v68Start.apply(this, arguments);
+};
+// A stored sign-in that already expired shouldn't be tried at all
+window.addEventListener('load', () => {
+  try {
+    const t = sessionStorage.getItem('idToken');
+    if (t && tokenExp(t) * 1000 < Date.now() + 15000) { sessionStorage.removeItem('idToken'); sessionStorage.removeItem('userInfo'); currentIdToken = null; }
+  } catch (e) {}
+});
+</script>
+
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <!-- v6.4 — Delete removed logs permanently · Sheet size (Admin)                  -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
