@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v6.10</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v7.1</div>
   </div>
 </div>
 
@@ -1980,6 +1980,11 @@ tbody tr:hover .row-acts { opacity: 1; }
 // In Apps Script: window.SERVER_USER is set by the Index template scriptlet.
 // In static/file:// mode (no Apps Script), we fall back to demo users.
 // Zendesk ticket link — change here if your Zendesk address is different
+// Aging buckets — one list used everywhere. "0-3 days" = under 72h; day 3 (72h+) starts "3-7 days".
+var AGING_BUCKETS = ['0-3 days', '3-7 days', '8-14 days', '15-21 days', '21+ days'];
+var AGING_COLORS  = ['var(--c-green)', 'var(--c-amber)', 'var(--c-orange)', 'var(--c-red)', '#991B1B'];
+function agingBucketOf(d) { d = Number(d) || 0; return d < 3 ? AGING_BUCKETS[0] : d <= 7 ? AGING_BUCKETS[1] : d <= 14 ? AGING_BUCKETS[2] : d <= 21 ? AGING_BUCKETS[3] : AGING_BUCKETS[4]; }
+function agingColorOf(bucket) { return AGING_COLORS[Math.max(0, AGING_BUCKETS.indexOf(bucket))]; }
 var ZENDESK_TICKET_URL = 'https://cookunity7314.zendesk.com/agent/tickets/';
 const SERVER_USER = window.SERVER_USER || null;
 const IS_APPS_SCRIPT = typeof google !== 'undefined' && typeof google.script !== 'undefined' && typeof google.script.run !== 'undefined';
@@ -2299,7 +2304,7 @@ function renderDashboardView() {
       </div>
       <div class="panel">
         <div class="panel-title">Aging Distribution</div>
-        ${liveOr('aging', [['0-7 days',9,'var(--c-green)'],['8-14 days',4,'var(--c-amber)'],['15-21 days',1,'var(--c-orange)'],['21+ days',0,'var(--c-red)']]).map(([b,n,c])=>`<div class="bar-row"><div class="bar-label">${b}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,(n/liveMax('aging',14))*100)}%;background:${c}"></div></div><div class="bar-num" style="color:${c}">${n}</div></div>`).join('')}
+        ${liveOr('aging', AGING_BUCKETS.map((b, i) => [b, TICKETS.filter(t => agingBucketOf(t.days) === b).length, AGING_COLORS[i]])).map(([b,n,c])=>`<div class="bar-row"><div class="bar-label">${b}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,(n/liveMax('aging',14))*100)}%;background:${c}"></div></div><div class="bar-num" style="color:${c}">${n}</div></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-title">Top Specialists by Volume</div>
@@ -2387,8 +2392,7 @@ function renderTicketRows() {
 }
 
 function ticketRow(t) {
-  const bucketIdx = ['0-7 days','8-14 days','15-21 days','21+ days'].indexOf(t.bucket);
-  const dayColor = ['var(--c-green)','var(--c-amber)','var(--c-orange)','var(--c-red)'][Math.max(0,bucketIdx)];
+  const dayColor = agingColorOf(t.bucket);
   const isSel = selected.has(t.id);
   const isBreach = t.slaState === 'over' && t.status === 'On-Hold';
   return `<tr class="${isBreach?'sla-breach':''} ${isSel?'selected':''}">
@@ -2565,7 +2569,7 @@ function simulateNewUpload() {
     TICKETS.push({
       id: prev.id, subject: prev.subject + ' (reopened)', reason: 'Meal Experience',
       requester: 'Unknown', assignee: prev.originalAssignee, group: 'CX Leads',
-      holdReason:'', days: 0, bucket:'0-7 days', slaDue:'Jun 3 · 18:00', slaState:'ok',
+      holdReason:'', days: 0, bucket: agingBucketOf(0), slaDue:'Jun 3 · 18:00', slaState:'ok',
       status:'On-Hold', flaggedIncorrect:false,
       reopenedFrom: { closedAt: prev.closedAt, closedBy: prev.lead || 'auto-solve', reason: prev.closureReason }
     });
@@ -2967,8 +2971,7 @@ function renderLeadsTable() {
               reviewStatus: t => LEAD_ACTIONS[t.id] ? LEAD_ACTIONS[t.id].type : 'pending',
             }).map(t => {
               const action = LEAD_ACTIONS[t.id];
-              const bucketIdx = ['0-7 days','8-14 days','15-21 days','21+ days'].indexOf(t.bucket);
-              const dayColor = ['var(--c-green)','var(--c-amber)','var(--c-orange)','var(--c-red)'][Math.max(0,bucketIdx)];
+              const dayColor = agingColorOf(t.bucket);
               return `<tr>
                 <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span></td>
                 <td><span class="subj-main">${t.subject}</span><span class="subj-sub">${t.requester}</span></td>
@@ -3625,7 +3628,7 @@ function updateUserFooter() {
 // ═══════════════════════════════════════════════════════════════════════════
 const ADMIN_CONFIG = {
   slaWarning: 14,        // days
-  agingBuckets: '0-7 / 8-14 / 15-21 / 21+',
+  agingBuckets: '0-3 / 3-7 / 8-14 / 15-21 / 21+',
   autoArchiveSolved: 90, // days
   csvUploadCutoff: '5MB',
 };
@@ -6090,7 +6093,7 @@ const initialsOf = n => String(n || '?').split(/\s+/).filter(Boolean).map(p => p
 const pad2 = n => String(n).padStart(2, '0');
 const fmtShort = iso => { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
 const fmtStamp = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? String(iso) : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
-const bucketOf = d => d <= 7 ? '0-7 days' : d <= 14 ? '8-14 days' : d <= 21 ? '15-21 days' : '21+ days';
+const bucketOf = agingBucketOf;
 const weekStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; };
 const refill = (arr, items) => { arr.splice(0, arr.length, ...items); };
 const slaDays = () => parseInt(LIVE_DATA.config.slaWarningDays, 10) || 14;
@@ -6236,8 +6239,7 @@ function buildCalc(act) {
 
   LIVE_CALC = {
     holdAvg: Object.entries(holdGroups).map(([k, ds]) => { const a = Math.round(avg(ds) * 10) / 10; return [k, a, color(a)]; }).sort((a, b) => b[1] - a[1]).slice(0, 6),
-    aging: [['0-7 days', act.filter(t => t.days <= 7).length, 'var(--c-green)'], ['8-14 days', act.filter(t => t.days > 7 && t.days <= 14).length, 'var(--c-amber)'],
-      ['15-21 days', act.filter(t => t.days > 14 && t.days <= 21).length, 'var(--c-orange)'], ['21+ days', act.filter(t => t.days > 21).length, 'var(--c-red)']],
+    aging: AGING_BUCKETS.map((b, i) => [b, act.filter(t => agingBucketOf(t.days) === b).length, AGING_COLORS[i]]),
     topSpec: Object.values(specCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
     flagTrend: trend,
     trendLabels: `<span>${dLabel(13)}</span><span>${dLabel(7)}</span><span>${dLabel(0)}</span>`,
@@ -6771,7 +6773,7 @@ filterBar = function () {
       <div class="filter-field"><label class="filter-label">Assignee</label>${sel('assignee', 'All Assignees', assignees.map(x => opt(x, x, d.assignee)).join(''))}</div>
       <div class="filter-field"><label class="filter-label">Group</label>${sel('group', 'All Groups', groups.map(x => opt(x, x, d.group)).join(''))}</div>
       <div class="filter-field"><label class="filter-label">Hold Reason</label>${sel('holdReason', 'All Reasons', reasons.map(x => opt(x, x, d.holdReason)).join('') + opt('__none', 'Not set', d.holdReason))}</div>
-      <div class="filter-field"><label class="filter-label">Aging Bucket</label>${sel('aging', 'All Aging', ['0-7 days', '8-14 days', '15-21 days', '21+ days'].map(x => opt(x, x, d.aging)).join(''))}</div>
+      <div class="filter-field"><label class="filter-label">Aging Bucket</label>${sel('aging', 'All Aging', AGING_BUCKETS.map(x => opt(x, x, d.aging)).join(''))}</div>
       <div class="filter-field"><label class="filter-label">Age Status</label>${sel('age', 'All', opt('over', 'Breached', d.age) + opt('soon', 'Due Soon', d.age) + opt('ok', 'OK', d.age))}</div>
     </div>
     <div class="filter-actions">
@@ -7942,6 +7944,162 @@ function renderSolvedViewV2() {
 if (VIEWS.solved) VIEWS.solved.render = function () { return renderSolvedViewV2(); };
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v7.0 — TICKET CLAIMING: several leads review at once without overlapping      -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+.cl-chip{display:inline-flex;align-items:center;gap:5px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;border-radius:999px;padding:2px 10px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.cl-mine{display:flex;align-items:center;gap:8px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:10px;padding:7px 12px;font-size:12.5px;margin:8px 0 12px}
+tr.cl-row td{background:#F5F7FF;opacity:.85}
+.cl-live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-3)}
+.cl-dot{width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 0 3px #D1FAE5}
+</style>
+<script>
+let CLAIMS = {}, myClaim = null, lastClaimSync = 0, lastActivity = Date.now(), _clBusy = false;
+const clMe = () => String((currentUser && currentUser.email) || '').toLowerCase();
+const clOn = () => !!window.SERVER_USER && !viewAsRole;
+function claimOf(id) { const c = CLAIMS[id]; return c && c.expires > Date.now() ? c : null; }
+function claimedByOther(id) { const c = claimOf(id); return c && String(c.email).toLowerCase() !== clMe() ? c : null; }
+function clMins(c) { const m = Math.max(0, Math.round((Date.now() - new Date(c.since).getTime()) / 60000)); return m < 1 ? 'just now' : m + ' min'; }
+
+// Tickets someone else is reviewing drop out of your queue (and don't count as "out of order")
+const _clPending = pendingQueue;
+pendingQueue = function () { return _clPending().filter(t => !claimedByOther(t.id)); };
+
+async function claimTicket(id) {
+  if (!clOn()) return;
+  const r = await api.call('api_claimTicket', id).catch(() => null);
+  const d = r && r.data;
+  if (!d) return;
+  if (d.claims) CLAIMS = d.claims;
+  if (d.ok === false) {
+    toast(`🔒 ${d.claimedBy} just started reviewing #${id} — moving you to the next free ticket`, 'info');
+    if (reviewMode && TICKETS[reviewIndex] && TICKETS[reviewIndex].id === id) goNextFree(); else renderLeadsView();
+  } else myClaim = id;
+}
+function releaseMyClaim() {
+  if (!clOn() || !myClaim) return;
+  const id = myClaim; myClaim = null; delete CLAIMS[id];
+  api.call('api_releaseClaim', id).then(r => { if (r && r.data && r.data.claims) CLAIMS = r.data.claims; }).catch(() => {});
+}
+async function forceRelease(id) {
+  const c = claimOf(id);
+  if (!confirm(`Release #${id}? ${c ? c.name + ' is reviewing it (' + clMins(c) + ').' : ''}\nThey'll lose their unsaved work on this ticket.`)) return;
+  const r = await api.call('api_releaseClaim', id, true).catch(e => ({ ok: false, error: e.message }));
+  if (r && r.ok && r.data) { CLAIMS = r.data.claims || {}; toast('✓ #' + id + ' released', 'success'); renderLeadsView(); }
+  else toast((r && (r.error || (r.data && r.data.error))) || 'Could not release', 'info');
+}
+function goNextFree() {
+  const n = pendingQueue()[0];
+  if (n) { _v65ReviewTicket(n.id); }
+  else { exitReviewMode(); toast('🎉 No free tickets left — everything is reviewed or being reviewed', 'success'); }
+}
+
+// Sync claims + today's reviews from other leads (every ~20s on Lead Monitoring)
+async function syncClaims(force) {
+  if (!clOn() || _clBusy || (!force && Date.now() - lastClaimSync < 15000)) return;
+  _clBusy = true;
+  try {
+    const r = await api.call('api_getClaims');
+    const d = r && r.ok && r.data;
+    if (!d) return;
+    const before = JSON.stringify([Object.keys(CLAIMS).sort(), Object.keys(LEAD_ACTIONS).length]);
+    CLAIMS = d.claims || {};
+    const onHold = new Set(TICKETS.map(t => t.id));
+    (d.reviews || []).forEach(v => {
+      if (onHold.has(v.ticketId) && !LEAD_ACTIONS[v.ticketId]) LEAD_ACTIONS[v.ticketId] = { type: v.action, lead: v.lead, timestamp: v.at, remote: true };
+    });
+    lastClaimSync = Date.now();
+    const changed = before !== JSON.stringify([Object.keys(CLAIMS).sort(), Object.keys(LEAD_ACTIONS).length]);
+    if (changed && currentView === 'leads' && !topOpenModal()) {
+      if (!reviewMode) renderLeadsView();
+      else { updateSidebarCounts(); paintClaimBanner(); }
+    }
+  } finally { _clBusy = false; }
+}
+setInterval(() => { if (currentView === 'leads' && !document.hidden) syncClaims(); }, 20000);
+// keep my claim alive while I'm active; let it expire when I walk away
+['click', 'keydown', 'mousemove', 'scroll'].forEach(ev => document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true }));
+setInterval(() => { if (clOn() && reviewMode && myClaim && Date.now() - lastActivity < 3 * 60000) claimTicket(myClaim); }, 60000);
+window.addEventListener('beforeunload', () => {
+  if (!clOn() || !myClaim || typeof APPS_SCRIPT_URL === 'undefined') return;
+  try { fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, keepalive: true,
+    body: JSON.stringify({ idToken: currentIdToken, method: 'api_releaseClaim', args: [myClaim] }) }); } catch (e) {}
+});
+
+function paintClaimBanner() {
+  const old = document.getElementById('cl-mine'); if (old) old.remove();
+  if (!reviewMode || !clOn()) return;
+  const t = TICKETS[reviewIndex], anchor = document.querySelector('#content .review-ticket-id');
+  if (!t || !anchor) return;
+  const others = Object.entries(CLAIMS).filter(([k, c]) => c.expires > Date.now() && String(c.email).toLowerCase() !== clMe());
+  anchor.insertAdjacentHTML('afterend', `<div class="cl-mine" id="cl-mine">🔒 <span><strong>You're reviewing #${lrEsc(t.id)}</strong> — other leads will skip it until you save or exit.</span>
+    ${others.length ? `<span style="margin-left:auto" class="cl-live"><span class="cl-dot"></span>${others.length} other lead${others.length > 1 ? 's' : ''} reviewing now</span>` : ''}</div>`);
+}
+
+// Hook every Lead Monitoring redraw: claim what I'm looking at, mark what others hold
+{
+  const _clRender = renderLeadsView;
+  let _hop = false;
+  renderLeadsView = function () {
+    const r = _clRender.apply(this, arguments);
+    if (!clOn()) return r;
+    if (reviewMode) {
+      const t = TICKETS[reviewIndex];
+      if (t && claimedByOther(t.id) && !_hop) {
+        // landed on someone else's ticket → move forward to the next one that's free
+        _hop = true;
+        const onHold = TICKETS.map((x, i) => [x, i]).filter(([x]) => x.status === 'On-Hold');
+        const pos = onHold.findIndex(([x]) => x.id === t.id);
+        const next = onHold.slice(pos + 1).find(([x]) => !claimedByOther(x.id) && !LEAD_ACTIONS[x.id]) || onHold.find(([x]) => !claimedByOther(x.id) && !LEAD_ACTIONS[x.id]);
+        toast(`🔒 #${t.id} is being reviewed by ${claimedByOther(t.id).name} — skipped`, 'info');
+        if (next) { reviewIndex = next[1]; renderLeadsView(); } else { exitReviewMode(); toast('🎉 No free tickets left', 'success'); }
+        _hop = false;
+        return r;
+      }
+      if (t && myClaim !== t.id) claimTicket(t.id);
+      paintClaimBanner();
+    } else {
+      if (myClaim) releaseMyClaim();
+      // list: show who is reviewing what
+      Object.keys(CLAIMS).forEach(id => {
+        const c = claimedByOther(id); if (!c) return;
+        const btn = document.querySelector(`#content button[onclick="reviewTicket('${id}')"]`);
+        const tr = btn && btn.closest('tr'); if (!tr) return;
+        tr.classList.add('cl-row');
+        btn.outerHTML = `<span class="cl-chip" title="Claimed ${clMins(c)} ago">🔒 In review · ${lrEsc(c.name)} · ${clMins(c)}</span>` +
+          (can('viewPerformance') ? ` <button class="btn btn-ghost btn-sm" onclick="forceRelease('${lrEsc(id)}')" title="Release this ticket">Release</button>` : '');
+      });
+      const banner = document.querySelector('#content .lead-banner');
+      const active = Object.values(CLAIMS).filter(c => c.expires > Date.now());
+      if (banner && !document.getElementById('cl-live')) banner.insertAdjacentHTML('afterend',
+        `<div id="cl-live" class="cl-live" style="margin:-6px 0 12px 2px"><span class="cl-dot"></span>Live · ${active.length ? active.length + ' ticket' + (active.length > 1 ? 's' : '') + ' being reviewed right now · ' : ''}updates every 20 seconds</div>`);
+      if (Date.now() - lastClaimSync > 20000) syncClaims(true);
+    }
+    return r;
+  };
+  if (VIEWS.leads) VIEWS.leads.render = function () { return renderLeadsView(); };
+}
+// Opening a ticket someone else holds is blocked with a clear message
+{
+  const _clReview = reviewTicket;
+  reviewTicket = function (id) {
+    const c = claimedByOther(id);
+    if (c) { toast(`🔒 #${id} is being reviewed by ${c.name} right now — pick another ticket`, 'info'); return; }
+    return _clReview.apply(this, arguments);
+  };
+  const _clExit = exitReviewMode;
+  exitReviewMode = function () { const r = _clExit.apply(this, arguments); releaseMyClaim(); return r; };
+  const _clSave = saveAndNext;
+  saveAndNext = function (id) { if (myClaim === id) { myClaim = null; delete CLAIMS[id]; } return _clSave.apply(this, arguments); };
+}
+</script>
+
+<script>
+// Example/preview data: re-bucket with the shared aging buckets
+TICKETS.forEach(t => { t.bucket = agingBucketOf(t.days); });
+CLOSED.forEach(c => { if (c.daysOpen !== undefined) c.finalBucket = agingBucketOf(c.daysOpen); });
+</script>
 </div> <!-- end #app-shell -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <!-- v6.3 — Loading indicator with timer · 1-minute limit on every sheet request   -->
@@ -7982,6 +8140,7 @@ const LD_LABELS = {
   api_exportAll: 'Preparing the backup', api_resetAllData: 'Resetting the tracker',
 };
 // Small background saves (reviews, flags…) show a compact "Saving…" instead of the full panel
+const LD_SILENT = new Set(['api_getClaims', 'api_claimTicket', 'api_releaseClaim']);
 const LD_QUIET = new Set(['api_leadAction', 'api_flagIncorrect', 'api_unflagIncorrect', 'api_updateHoldReason', 'api_deliverFeedback']);
 const ldJobs = new Map();
 let ldSeq = 0, ldTick = null;
@@ -8038,6 +8197,7 @@ window.fetch = function (url, opts) {
   try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
   const method = body.method || '';
   if (!method) return _ldFetch(url, opts);   // not a tracker request (e.g. opening the backend page)
+  if (LD_SILENT.has(method)) return _ldFetch(url, opts);   // background claim sync — no loading pill
   const isRead = /^api_get/.test(method);
   // Expired sign-in: stop here with a clear message instead of a failed request
   const exp = tokenExp(body.idToken);
@@ -8198,7 +8358,7 @@ if (VIEWS.admin) {
 <script>
 // ⚠️ CONFIGURE THESE TWO BEFORE DEPLOYING
 const GOOGLE_CLIENT_ID = '311124993732-sv5crdiag2ghr2f5u9geupi1b29uqe06.apps.googleusercontent.com';
-const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbyAf6YpqKRAUAoDyd7Q-dkNw_WBpetu0eKcweAcY9wufYfO_FJn3FSDEqTI6sS2ZRzb/exec';
+const APPS_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbwMsD_m9G0QwpaCqdmHNO-j1_QWo-jMdFwR-g8D3U08po9nFHPt94Y3Wd9vFR_YEaBA/exec';
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Sign-in state — stored in memory + sessionStorage so refresh keeps you signed in
