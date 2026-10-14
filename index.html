@@ -1812,7 +1812,7 @@ tbody tr:hover .row-acts { opacity: 1; }
     <div style="font-size:14px;color:#64748B;margin-bottom:28px;line-height:1.55">Sign in with your CookUnity Google account.<br>Only <strong>@cookunity.com</strong> accounts are allowed.</div>
     <div id="google-signin-btn" style="display:flex;justify-content:center;margin-bottom:14px"></div>
     <div id="login-error" style="font-size:12.5px;color:#EF4444;margin-top:12px;min-height:16px"></div>
-    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v7.1</div>
+    <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">v7.2</div>
   </div>
 </div>
 
@@ -2399,7 +2399,7 @@ function ticketRow(t) {
     <td class="checkbox-col"><span class="cb ${isSel?'checked':''}" onclick="toggleRow('${t.id}', event)"></span></td>
     <td><span class="tid"><a href="${ZENDESK_TICKET_URL}${t.id}" target="_blank">#${t.id}</a></span></td>
     <td><span class="subj-main">${t.subject}</span><span class="subj-sub">${t.requester}${t.flaggedIncorrect?' · <span class="flag-badge">⚠ Flagged</span>':''}</span></td>
-    <td style="font-size:12.5px;color:var(--text-2);white-space:nowrap">${t.assignee}</td>
+    <td style="font-size:12.5px;color:var(--text-2);white-space:nowrap">${t.assignee || '<span style="color:var(--text-mute)">Unassigned</span>'}<span class="subj-sub">${typeof supervisorOf === 'function' ? '👤 ' + supervisorOf(t.assignee) : ''}</span></td>
     <td><span class="badge badge-group">${t.group}</span></td>
     <td><span class="inline-edit ${t.holdReason?'':'empty'}" onclick="editHoldReason(this, '${t.id}')">${t.holdReason || 'Not set'}</span></td>
     <td><span class="dpill" style="background:${dayColor}1A;color:${dayColor}">${t.days}d</span></td>
@@ -2407,6 +2407,7 @@ function ticketRow(t) {
     <td><span class="badge ${isBreach?'badge-sla':'badge-onhold'}">${isBreach ? 'SLA Breach' : '⏸ On-Hold'}</span></td>
     <td>
       <div class="row-acts">
+        <button class="row-close-btn" onclick="closeInMonitoring('${t.id}'); event.stopPropagation()" title="Close this ticket in Lead Monitoring">✓ Close</button>
 
         <button class="row-act-btn" onclick="quickFollowUp('${t.id}'); event.stopPropagation()" title="Log follow-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>
       </div>
@@ -5664,7 +5665,7 @@ function paintRolesCard() {
   if (el) el.outerHTML = rolesCardHtml();
 }
 async function loadRoles() {
-  try { rolesCache = await apiData('api_getRoles'); }
+  try { rolesCache = await apiData('api_getRoles'); if (!Array.isArray(rolesCache)) rolesCache = { error: 'Roles are not available — check that Code.gs is up to date.' }; }
   catch (e) { rolesCache = { error: e.message }; }
   paintRolesCard();
 }
@@ -8100,6 +8101,87 @@ function paintClaimBanner() {
 TICKETS.forEach(t => { t.bucket = agingBucketOf(t.days); });
 CLOSED.forEach(c => { if (c.daysOpen !== undefined) c.finalBucket = agingBucketOf(c.daysOpen); });
 </script>
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- v7.2 — Supervisor quick view · specialist view from Team Hierarchy ·          -->
+<!--        Close a ticket in Lead Monitoring straight from Active On-Hold         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+.sq-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.sq-lbl{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-right:2px}
+.sq-chip{border:1px solid var(--border);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--text-2);cursor:pointer;font-family:var(--font-sans);display:inline-flex;gap:6px;align-items:center}
+.sq-chip:hover{border-color:#FDBA74;color:#C2410C}
+.sq-chip .n{background:var(--panel-alt);border-radius:999px;padding:0 7px;font-size:11.5px;color:var(--text-3)}
+.sq-chip.active{background:#7C2D12;border-color:#7C2D12;color:#fff}
+.sq-chip.active .n{background:rgba(255,255,255,.2);color:#fff}
+.sq-chip.special{border-style:dashed}
+.ag-banner{display:flex;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FED7AA;color:#7C2D12;border-radius:12px;padding:9px 14px;margin:0 0 12px;font-size:13px}
+.row-close-btn{border:1px solid #86EFAC;background:#F0FDF4;color:#15803D;border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--font-sans);white-space:nowrap}
+.row-close-btn:hover{background:#DCFCE7}
+</style>
+<script>
+// ─── Supervisor quick view (one click, no Apply needed) ──────────────────────
+function setSupQuick(name) {
+  AH.applied = Object.assign({}, AH.applied, { supervisor: name });
+  AH.draft = Object.assign({}, AH.applied);
+  if (VIEWS[currentView]) VIEWS[currentView].render();
+}
+function clearAssigneeView() { AH.applied = Object.assign({}, AH.applied, { assignee: '' }); AH.draft = Object.assign({}, AH.applied); if (VIEWS[currentView]) VIEWS[currentView].render(); }
+function supQuickBarHtml() {
+  // counts follow every other active filter, so the chips always add up to what you'd see
+  const keep = AH.applied.supervisor;
+  AH.applied.supervisor = '';
+  const base = filteredTickets();
+  AH.applied.supervisor = keep;
+  const counts = {};
+  base.forEach(t => { const k = supervisorOf(t.assignee); counts[k] = (counts[k] || 0) + 1; });
+  const special = k => k === NOT_IN_HIER || k === 'Unassigned';
+  const names = Object.keys(counts).sort((a, b) => special(a) - special(b) || counts[b] - counts[a] || a.localeCompare(b));
+  const chip = (val, label, n, extra = '') => `<button class="sq-chip ${keep === val ? 'active' : ''} ${extra}" onclick="setSupQuick('${lrEsc(val).replace(/'/g, "\\'")}')">${lrEsc(label)} <span class="n">${n}</span></button>`;
+  return `<div class="sq-bar" id="sq-bar"><span class="sq-lbl">By supervisor</span>${chip('', 'All', base.length)}${names.map(k => chip(k, k, counts[k], special(k) ? 'special' : '')).join('')}</div>`;
+}
+if (VIEWS.tickets) {
+  const _sqTickets = VIEWS.tickets.render;
+  VIEWS.tickets.render = function () {
+    const r = _sqTickets.apply(this, arguments);
+    const anchor = document.querySelector('#content .toolbar') || document.querySelector('#content .table-wrap');
+    if (anchor && !document.getElementById('sq-bar')) {
+      let html = supQuickBarHtml();
+      if (AH.applied.assignee) html = `<div class="ag-banner">👤 <span>Showing On-Hold tickets for <strong>${lrEsc(AH.applied.assignee)}</strong> · supervisor: ${lrEsc(supervisorOf(AH.applied.assignee))}</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearAssigneeView()">✕ Show all specialists</button></div>` + html;
+      anchor.insertAdjacentHTML('beforebegin', html);
+    }
+    return r;
+  };
+}
+
+// ─── Team Hierarchy → click a specialist → only their tickets ────────────────
+openAgentTickets = function (name) {
+  AH.applied = Object.assign(ahDefaults(), { assignee: assigneeName(name) });
+  AH.draft = Object.assign({}, AH.applied);
+  AH.q = '';
+  setView('tickets');
+};
+
+// ─── Close a ticket in Lead Monitoring from Active On-Hold ───────────────────
+let pendingCloseFor = null;
+function closeInMonitoring(id) {
+  pendingCloseFor = id;
+  setView('leads');
+  reviewTicket(id);   // same rules as Lead Monitoring: oldest-first note if needed, and claiming
+}
+{
+  const _pcRender = renderLeadsView;
+  renderLeadsView = function () {
+    if (pendingCloseFor && reviewMode && TICKETS[reviewIndex]) {
+      if (TICKETS[reviewIndex].id === pendingCloseFor) pendingAction = 'close';
+      pendingCloseFor = null;
+    }
+    return _pcRender.apply(this, arguments);
+  };
+  if (VIEWS.leads) VIEWS.leads.render = function () { return renderLeadsView(); };
+}
+</script>
+
 </div> <!-- end #app-shell -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <!-- v6.3 — Loading indicator with timer · 1-minute limit on every sheet request   -->
